@@ -1,8 +1,8 @@
 // Discord Interactions endpoint (no always-on bot needed): buttons "ทาแล้ว"/"เลื่อน" and
 // slash commands /today /tomorrow /streak. Deploy with --no-verify-jwt (Discord signs requests instead).
 import * as core from "../lib/core.js";
-import { admin, env, json, loadUser, markDone, ownerSettings, snooze } from "../lib/db.ts";
-import { routineEmbed, verify } from "../lib/discord.ts";
+import { admin, json, loadUser, markDone, snooze } from "../lib/db.ts";
+import { discordIdFor, routineEmbed, verify } from "../lib/discord.ts";
 
 const SLOT_TH = { am: "ตอนเช้า", pm: "ก่อนนอน" } as const;
 const reply = (data: any, type = 4) => json({ type, data });
@@ -14,12 +14,13 @@ export default async function handler(req: Request): Promise<Response> {
   const it = JSON.parse(body);
   if (it.type === 1) return json({ type: 1 }); // PING
 
-  const who = it.user?.id ?? it.member?.user?.id;
-  if (who !== env("DISCORD_USER_ID")) return ephemeral("บอทนี้ใช้ได้เฉพาะเจ้าของเท่านั้น");
-
+  const who = String(it.user?.id ?? it.member?.user?.id ?? "");
   const db = admin();
-  const row = await ownerSettings(db);
-  if (!row) return ephemeral("ยังไม่มีผู้ใช้ในระบบ");
+  // whoever pressed the button / typed the command must be a Skiinx user linked to this Discord account
+  const { data: rows } = await db.from("settings").select("*");
+  let row: any = null;
+  for (const r of rows || []) if (who && (await discordIdFor(db, r.user_id)) === who) { row = r; break; }
+  if (!row) return ephemeral("บัญชี Discord นี้ยังไม่ได้เชื่อมกับ Skiinx — เข้าสู่ระบบในแอพด้วย Discord ก่อน");
   const now = new Date();
 
   // ── buttons

@@ -52,15 +52,6 @@ export async function loadUser(db: SupabaseClient, settingsRow: any, now = new D
   return { userId, settingsRow, settings, schedules, checks, states, today, streak, firstDate };
 }
 
-/** The single owner of this deployment (APP_USER_ID secret, else the most recent settings row). */
-export async function ownerSettings(db: SupabaseClient) {
-  const id = env("APP_USER_ID");
-  const q = db.from("settings").select("*");
-  const { data, error } = id ? await q.eq("user_id", id).maybeSingle() : await q.order("updated_at", { ascending: false }).limit(1).maybeSingle();
-  if (error) throw new Error(error.message);
-  return data;
-}
-
 /** Mark a routine done (from Discord or a notification button). */
 export async function markDone(db: SupabaseClient, userId: string, date: string, slot: string, source: "discord" | "push") {
   return db.from("checkins").upsert({ user_id: userId, date, slot, source, done_at: new Date().toISOString() });

@@ -37,12 +37,15 @@ npm test             # core + skin metrics (ทดสอบกับไฟล์
 3. **Vault + cron** — แก้ค่าใน [supabase/cron.sql](supabase/cron.sql) แล้วรันใน SQL Editor ครั้งเดียว
 4. **Function** — `npm run sync-core && npx supabase functions deploy skiinx --no-verify-jwt`
 5. **Vercel** — env `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY` → Deploy
-6. **Auth** — Authentication → URL Configuration → Redirect URLs เพิ่ม `https://<app>.vercel.app/**`
-7. **Discord** (ข้ามได้) — สร้างบอท → Edge Functions → Secrets ใส่ `DISCORD_MODE=bot`, `DISCORD_BOT_TOKEN`, `DISCORD_PUBLIC_KEY`, `DISCORD_USER_ID`
+6. **Login ด้วย Discord** — Discord Developer Portal → แอพเดียวกับบอท → OAuth2 → Redirects เพิ่ม `https://<ref>.supabase.co/auth/v1/callback`
+   → คัดลอก Client ID + Client Secret → Supabase → Authentication → Sign In / Providers → **Discord** → เปิด แล้ววางสองค่า
+   → Authentication → URL Configuration → Redirect URLs เพิ่ม `https://<app>.vercel.app/**`
+   (login ด้วย Discord แล้ว ระบบรู้ Discord ID เอง ไม่ต้องตั้ง `DISCORD_USER_ID`)
+7. **บอท Discord** (ข้ามได้) — Edge Functions → Secrets ใส่ `DISCORD_MODE=bot`, `DISCORD_BOT_TOKEN`, `DISCORD_PUBLIC_KEY`
    → Interactions Endpoint URL = `https://<ref>.supabase.co/functions/v1/skiinx/discord`
    → `DISCORD_APP_ID=… DISCORD_BOT_TOKEN=… npm run register-commands`
-   (webhook แทนบอท: `DISCORD_MODE=webhook`, `DISCORD_WEBHOOK_URL`, `DISCORD_USER_ID`)
-8. **มือถือ** — เพิ่มลงหน้าจอโฮม → login → อัพโหลดตาราง → ตั้งค่า → เปิด "แจ้งเตือนบนเครื่องนี้" → ส่งแจ้งเตือนทดสอบ
+   (webhook แทนบอท: `DISCORD_MODE=webhook`, `DISCORD_WEBHOOK_URL`)
+8. **มือถือ** — เพิ่มลงหน้าจอโฮม → เข้าสู่ระบบด้วย Discord → อัพโหลดตาราง → ตั้งค่า → เปิด "แจ้งเตือนบนเครื่องนี้" → ส่งแจ้งเตือนทดสอบ
 
 > Supabase Free พักโปรเจกต์ที่ไม่มีการใช้งาน 1 สัปดาห์ — ถ้าโดนพัก แจ้งเตือนจะหยุด แต่ .ics ยังเตือนอยู่
 

@@ -12,7 +12,22 @@ export type SendResult = { ok: true } | { ok: false; status: number; error: stri
 const mode = (): "bot" | "webhook" => (env("DISCORD_MODE") === "webhook" ? "webhook" : "bot");
 /** Discord is usable when its secrets exist and the user hasn't switched it off in Settings. */
 export const discordReady = (settings: any) =>
-  settings.discordEnabled !== false && (mode() === "webhook" ? !!env("DISCORD_WEBHOOK_URL") : !!(env("DISCORD_BOT_TOKEN") && env("DISCORD_USER_ID")));
+  settings.discordEnabled !== false && (mode() === "webhook" ? !!env("DISCORD_WEBHOOK_URL") : !!env("DISCORD_BOT_TOKEN"));
+
+/**
+ * The owner's Discord user id: the DISCORD_USER_ID secret if set, otherwise taken from their
+ * "Sign in with Discord" identity — so logging in with Discord is all the linking needed.
+ */
+const idCache = new Map<string, string>();
+export async function discordIdFor(db: SupabaseClient, userId: string): Promise<string> {
+  if (env("DISCORD_USER_ID")) return env("DISCORD_USER_ID");
+  if (idCache.has(userId)) return idCache.get(userId)!;
+  const { data } = await db.auth.admin.getUserById(userId);
+  const ident = data?.user?.identities?.find((i: any) => i.provider === "discord");
+  const id = String(ident?.identity_data?.provider_id || ident?.identity_data?.sub || ident?.id || "");
+  if (id) idCache.set(userId, id);
+  return id;
+}
 const hexToInt = (hex: string) => parseInt(String(hex || "#f472b6").replace("#", ""), 16) || 0xf472b6;
 
 async function result(res: Response): Promise<SendResult> {
@@ -21,12 +36,12 @@ async function result(res: Response): Promise<SendResult> {
   return { ok: false, status: res.status, error: body?.message || res.statusText, retryAfter: body?.retry_after };
 }
 
-async function dmChannel(db: SupabaseClient, settingsRow: any): Promise<string> {
+async function dmChannel(db: SupabaseClient, settingsRow: any, uid: string): Promise<string> {
   if (settingsRow.discord_dm_channel) return settingsRow.discord_dm_channel;
   const res = await fetch(`${API}/users/@me/channels`, {
     method: "POST",
     headers: { Authorization: `Bot ${env("DISCORD_BOT_TOKEN")}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ recipient_id: env("DISCORD_USER_ID") }),
+    body: JSON.stringify({ recipient_id: uid }),
   });
   if (!res.ok) throw new Error(`open DM failed: ${res.status} ${await res.text()}`);
   const { id } = await res.json();
@@ -37,7 +52,7 @@ async function dmChannel(db: SupabaseClient, settingsRow: any): Promise<string> 
 
 /** Send to the owner. In webhook mode buttons are dropped (webhooks can't carry interactive components). */
 export async function sendDiscord(db: SupabaseClient, settingsRow: any, msg: Msg): Promise<SendResult> {
-  const uid = env("DISCORD_USER_ID");
+  const uid = await discordIdFor(db, settingsRow.user_id);
   const content = uid ? `<@${uid}> ${msg.content ?? ""}`.trim() : msg.content;
   if (mode() === "webhook") {
     return result(
@@ -48,7 +63,8 @@ export async function sendDiscord(db: SupabaseClient, settingsRow: any, msg: Msg
       }),
     );
   }
-  const ch = await dmChannel(db, settingsRow);
+  if (!uid) return { ok: false, status: 0, error: "ยังไม่ได้เชื่อม Discord — เข้าสู่ระบบด้วย Discord หรือตั้ง DISCORD_USER_ID" };
+  const ch = await dmChannel(db, settingsRow, uid);
   return result(
     await fetch(`${API}/channels/${ch}/messages`, {
       method: "POST",

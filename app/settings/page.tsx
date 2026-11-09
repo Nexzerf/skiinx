@@ -15,6 +15,7 @@ import { clearLocal, pendingCount } from "@/lib/store";
 import { disablePush, enablePush, pushState, type PushState } from "@/lib/push";
 import { PageTitle, Section } from "@/components/ui";
 import { CheckChips, Select, Stepper, Swatches, Switch, TimePicker } from "@/components/controls";
+import DiscordLogo from "@/components/DiscordLogo";
 
 const PUSH_NOTE: Record<PushState, string> = {
   on: "เปิดอยู่บนเครื่องนี้",
@@ -32,9 +33,20 @@ export default function SettingsPage() {
   const [origin, setOrigin] = useState("");
   const [push, setPush] = useState<PushState>("off");
   const [busy, setBusy] = useState(false);
+  const [discordAcct, setDiscordAcct] = useState<{ name: string; avatar?: string } | null>(null);
   useEffect(() => {
     setOrigin(window.location.origin);
     pushState().then(setPush);
+    if (cloudEnabled)
+      sb()
+        .auth.getUser()
+        .then(({ data }) => {
+          const id = data.user?.identities?.find((i) => i.provider === "discord");
+          if (id) {
+            const m: any = id.identity_data || {};
+            setDiscordAcct({ name: m.custom_claims?.global_name || m.full_name || m.name || m.user_name || "Discord", avatar: m.avatar_url });
+          }
+        });
   }, []);
   if (!ready) return null;
 
@@ -86,15 +98,39 @@ export default function SettingsPage() {
 
       <Section title="บัญชี" icon={User}>
         {cloudEnabled ? (
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{d.email || "–"}</p>
-              <p className="text-xs text-muted">ซิงก์ข้อมูลอัตโนมัติ{pendingCount() > 0 ? ` · รอซิงก์ ${pendingCount()} รายการ` : ""}</p>
+          <>
+            <div className="flex items-center gap-3">
+              {discordAcct?.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={discordAcct.avatar} alt="" className="h-11 w-11 rounded-full ring-2 ring-brand-100" />
+              ) : (
+                <span className="grid h-11 w-11 place-items-center rounded-full text-white" style={{ background: "#5865F2" }}>
+                  <DiscordLogo className="h-5 w-5" />
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{discordAcct?.name || d.email || "–"}</p>
+                <p className="text-xs text-muted">
+                  {discordAcct ? "เชื่อม Discord แล้ว · " : ""}ซิงก์อัตโนมัติ{pendingCount() > 0 ? ` · รอซิงก์ ${pendingCount()} รายการ` : ""}
+                </p>
+              </div>
+              <button className="icon-btn h-10 w-10 shadow-none ring-1 ring-brand-100" aria-label="ออกจากระบบ" title="ออกจากระบบ" onClick={() => sb().auth.signOut()}>
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
-            <button className="btn-plain px-4 py-2" onClick={() => sb().auth.signOut()}>
-              <LogOut className="h-4 w-4" /> ออกจากระบบ
-            </button>
-          </div>
+            {!discordAcct && (
+              <button
+                className="btn w-full text-white"
+                style={{ background: "#5865F2" }}
+                onClick={async () => {
+                  const { error } = await sb().auth.linkIdentity({ provider: "discord", options: { redirectTo: `${window.location.origin}/settings` } });
+                  if (error) flash(error.message, false);
+                }}
+              >
+                <DiscordLogo /> เชื่อมบัญชี Discord
+              </button>
+            )}
+          </>
         ) : (
           <p className="text-sm text-ink/75">ข้อมูลทั้งหมดเก็บอยู่บนเครื่องนี้</p>
         )}
