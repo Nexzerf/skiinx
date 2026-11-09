@@ -221,17 +221,17 @@ export default function SchedulePage() {
                     <span className="flex-1 truncate text-sm font-medium">{s.name}</span>
                   </div>
                   <div className="mt-1 -mb-1 flex items-center gap-1 text-xs text-muted">
-                    <span>เริ่ม {thDate(s.start_date, false)} {+s.start_date.slice(0, 4) + 543}</span>
-                    <span>{s.data.days.length} วัน</span>
-                    <span className="flex-1" />
-                    <button className="flex items-center gap-1 rounded-full px-2.5 py-2 text-brand-600 active:bg-brand-50" onClick={() => updateSchedule(s.id, { enabled: !s.enabled })}>
+                    <span className="min-w-0 flex-1 truncate">
+                      เริ่ม {thDate(s.start_date, false)} {+s.start_date.slice(0, 4) + 543} · {s.data.days.length} วัน
+                    </span>
+                    <button className="flex shrink-0 items-center gap-1 rounded-full px-2 py-2 whitespace-nowrap text-brand-600 active:bg-brand-50" onClick={() => updateSchedule(s.id, { enabled: !s.enabled })}>
                       <Power className="h-3.5 w-3.5" /> {s.enabled ? "ปิดใช้" : "เปิดใช้"}
                     </button>
-                    <button className="flex items-center gap-1 rounded-full px-2.5 py-2 text-brand-600 active:bg-brand-50" onClick={() => download(new Blob([JSON.stringify(s, null, 2)], { type: "application/json" }), `schedule-${s.start_date}.json`)}>
+                    <button className="flex shrink-0 items-center gap-1 rounded-full px-2 py-2 whitespace-nowrap text-brand-600 active:bg-brand-50" onClick={() => download(new Blob([JSON.stringify(s, null, 2)], { type: "application/json" }), `schedule-${s.start_date}.json`)}>
                       <Download className="h-3.5 w-3.5" /> JSON
                     </button>
                     <button
-                      className="flex items-center gap-1 rounded-full px-2.5 py-2 text-red-500 active:bg-red-50"
+                      className="flex shrink-0 items-center gap-1 rounded-full px-2 py-2 whitespace-nowrap text-red-500 active:bg-red-50"
                       onClick={() => confirm(`ลบ "${s.name}"? (ประวัติการติ๊กไม่หาย)`) && deleteSchedule(s.id)}
                     >
                       <Trash2 className="h-3.5 w-3.5" /> ลบ

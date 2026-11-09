@@ -70,7 +70,7 @@ export default function ProductsPage() {
       {(expired.length > 0 || soon.length > 0) && (
         <section>
           <h2 className="mb-2 px-1 text-lg font-bold text-brand-600">หมดอายุเร็วที่สุด</h2>
-          <div className="-mx-5 flex snap-x gap-3 overflow-x-auto px-5 pb-2">
+          <div className="-mx-5 flex snap-x scroll-px-5 gap-3 overflow-x-auto px-5 pb-2">
             {expired.length > 0 && (
               <div className="flex w-36 shrink-0 snap-start flex-col justify-between rounded-3xl bg-linear-to-br from-brand-100 to-brand-200 p-4 shadow-soft">
                 <span className="text-5xl font-bold text-brand-600 tabular-nums">{expired.length}</span>

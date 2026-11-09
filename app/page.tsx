@@ -199,7 +199,7 @@ export default function Today() {
             </div>
           )}
           {tomorrow && (
-            <div className="mt-3 flex items-center gap-2 border-t border-brand-200/60 pt-3 text-sm text-muted">
+            <div className={`flex items-center gap-2 text-sm text-muted ${info.note ? "mt-3 border-t border-brand-200/60 pt-3" : ""}`}>
               พรุ่งนี้ {tomorrow.type ? <TypeTag type={tomorrow.type} label={tomorrow.typeLabel} small /> : `วัน ${tomorrow.n}`}
             </div>
           )}
