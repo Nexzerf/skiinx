@@ -276,3 +276,70 @@ input[type="range"] {
 @media (prefers-reduced-motion: reduce) {
   .drop-in, .jiggle, .sheet-panel, .sheet-backdrop { animation: none; }
 }
+
+/* ───────── cuter shelf ───────── */
+.shelf-wall {
+  background-color: #fff9fb;
+  background-image: radial-gradient(#ffd3de 1.3px, transparent 1.8px), radial-gradient(#ffe4ec 1.3px, transparent 1.8px);
+  background-size: 22px 22px;
+  background-position: 0 0, 11px 11px;
+}
+.shelf-awning {
+  background: repeating-linear-gradient(90deg, #ff9fb6 0 22px, #fff 22px 44px);
+}
+.shelf-scallop {
+  background:
+    radial-gradient(circle at 11px 0, #ff9fb6 10.5px, transparent 11px) 0 0 / 44px 12px repeat-x,
+    radial-gradient(circle at 33px 0, #fff 10.5px, transparent 11px) 0 0 / 44px 12px repeat-x;
+  filter: drop-shadow(0 3px 2px rgb(241 85 122 / 0.15));
+}
+.shelf-bracket {
+  width: 14px;
+  height: 12px;
+  background: #f9a8bf;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+.shelf-bracket-r { clip-path: polygon(0 0, 100% 0, 100% 100%); }
+.name-tag {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 4px 7px 4px 13px;
+  overflow: hidden;
+  border-radius: 8px 12px 12px 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  box-shadow: 0 4px 10px -6px rgb(43 34 48 / 0.35);
+  transform: rotate(-1.5deg);
+}
+.name-tag::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin-top: -2.5px;
+  border-radius: 999px;
+  background: #ffc7d5;
+}
+@keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+.blink { animation: blink 4.2s ease-in-out infinite; transform-origin: center; }
+@keyframes sway { 0%, 100% { transform: rotate(-1.6deg); } 50% { transform: rotate(1.6deg); } }
+.sway { animation: sway 3.6s ease-in-out infinite; transform-origin: 50% 100%; }
+.sway-slow { animation: sway 5s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes swing { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+.swing { animation: swing 3s ease-in-out infinite; transform-origin: 50% -10px; }
+@keyframes heart-rise {
+  0% { transform: translate(0, 6px) scale(0.4); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translate(var(--x, 0), -34px) scale(1.1); opacity: 0; }
+}
+.heart-rise { animation: heart-rise 0.85s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .blink, .sway, .sway-slow, .swing, .heart-rise { animation: none; }
+}

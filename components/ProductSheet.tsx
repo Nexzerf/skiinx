@@ -294,7 +294,7 @@ export function ProductSheet({ open, onClose, edit, usedIn, onSaved }: { open: b
           <div className="flex flex-col items-center gap-3">
             <div className="relative grid h-40 w-40 place-items-center rounded-[32px] soft-gradient">
               <span key={`${art}${preview.icon}${preview.color}${preview.category}${preview.image_url}`} className="jiggle">
-                <ProductArt p={preview} size={92} />
+                <ProductArt p={preview} size={92} face mood="happy" />
               </span>
             </div>
             <div className="flex rounded-full bg-white p-1 shadow-soft">

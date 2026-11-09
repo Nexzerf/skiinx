@@ -1,17 +1,46 @@
 "use client";
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, FileSpreadsheet, Moon, Plus, Sun, Wand2 } from "lucide-react";
+import { ChevronRight, FileSpreadsheet, Flower2, Heart, Moon, Plus, Sparkles, Sprout, Star, Sun, Wand2 } from "lucide-react";
 import { useData } from "@/lib/data";
 import * as core from "@/lib/core.js";
 import { CATEGORIES } from "@/lib/ingredients.js";
 import { PageTitle } from "@/components/ui";
-import { ProductArt } from "@/components/ProductArt";
+import { ProductArt, seedOf } from "@/components/ProductArt";
 import { ProductSheet } from "@/components/ProductSheet";
 import type { Product } from "@/lib/types";
 import { useUsage } from "@/lib/useUsage";
 
 const PER_ROW = 3;
+
+type DecoKind = "plant" | "flowers" | "star";
+/** Fill one empty spot per shelf with a little decoration. */
+function decoFor(row: number, col: number, used: number): DecoKind | null {
+  if (used >= PER_ROW) return null;
+  const spot = used === 0 ? (row % 2 ? 0 : 2) : PER_ROW - 1;
+  if (col !== spot) return null;
+  return (["plant", "flowers", "star"] as const)[row % 3];
+}
+
+function Deco({ kind, i }: { kind: DecoKind; i: number }) {
+  const pot = (children: React.ReactNode, potColor: string) => (
+    <span className="drop-in flex flex-col items-center" style={{ ["--i" as any]: i }} aria-hidden>
+      <span className="sway-slow block">{children}</span>
+      <span className="-mt-1 block h-[22px] w-[34px] rounded-[4px]" style={{ background: potColor, clipPath: "polygon(0 0,100% 0,86% 100%,14% 100%)" }} />
+    </span>
+  );
+  if (kind === "plant") return pot(<Sprout className="h-10 w-10 text-emerald-500" strokeWidth={2} />, "linear-gradient(180deg,#ffb4c4,#f48aa5)");
+  if (kind === "flowers") return pot(<Flower2 className="h-10 w-10 text-brand-400" strokeWidth={2} />, "linear-gradient(180deg,#c4b5fd,#a78bfa)");
+  return (
+    <span className="drop-in flex flex-col items-center" style={{ ["--i" as any]: i }} aria-hidden>
+      <span className="twinkle-soft grid h-11 w-11 place-items-center rounded-full bg-amber-100">
+        <Star className="h-6 w-6 fill-amber-300 text-amber-400" />
+      </span>
+      <span className="block h-4 w-1.5 bg-amber-200" />
+      <span className="block h-1.5 w-8 rounded-full bg-amber-300" />
+    </span>
+  );
+}
 
 export default function ShelfPage() {
   const { ready, snap } = useData();
@@ -38,7 +67,8 @@ export default function ShelfPage() {
 
   const open = (p: Product) => {
     setPoke(String(p.id));
-    setTimeout(() => setSheet({ open: true, edit: p }), 260);
+    setTimeout(() => setSheet({ open: true, edit: p }), 420);
+    setTimeout(() => setPoke((x) => (x === String(p.id) ? null : x)), 900);
   };
   const flash = (t: string) => {
     setToast(t);
@@ -59,42 +89,69 @@ export default function ShelfPage() {
       />
 
       {/* the shelf */}
-      <section className="relative overflow-hidden rounded-[32px] bg-white px-3 pt-4 pb-3 shadow-soft">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-linear-to-b from-brand-50 to-transparent" />
+      <section className="shelf-wall relative overflow-hidden rounded-[34px] px-3 pt-0 pb-4 shadow-soft">
+        {/* striped awning with a scalloped edge */}
+        <div className="shelf-awning -mx-3 h-7" aria-hidden />
+        <div className="shelf-scallop -mx-3 -mt-px h-3" aria-hidden />
+
+        {/* hanging sign */}
+        <div className="relative mx-auto -mt-1 mb-2 flex w-fit flex-col items-center" aria-hidden>
+          <span className="flex gap-12">
+            <span className="h-4 w-px bg-brand-300" />
+            <span className="h-4 w-px bg-brand-300" />
+          </span>
+          <span className="swing -mt-0.5 flex items-center gap-1.5 rounded-2xl border-2 border-white bg-linear-to-br from-brand-300 to-brand-500 px-3.5 py-1 text-[13px] font-bold text-white shadow-glow">
+            <Heart className="h-3.5 w-3.5 fill-white" />
+            {products.length ? `${products.length} ชิ้นน่ารัก` : "ชั้นยังว่างอยู่"}
+            <Sparkles className="h-3.5 w-3.5" />
+          </span>
+        </div>
+
         {rows.map((row, ri) => (
-          <div key={ri} className="relative mb-3 last:mb-0">
+          <div key={ri} className="relative mb-4 last:mb-0">
+            {/* things standing on the shelf */}
             <div className="relative z-10 grid grid-cols-3 items-end gap-1 px-1">
-              {row.map((it, ci) => {
+              {Array.from({ length: PER_ROW }, (_, ci) => {
+                const it = row[ci];
                 const idx = ri * PER_ROW + ci;
+                if (!it) {
+                  const deco = decoFor(ri, ci, row.length);
+                  return (
+                    <span key={`d${ci}`} className="flex justify-center">
+                      {deco && <Deco kind={deco} i={idx} />}
+                    </span>
+                  );
+                }
                 if (it === "add")
                   return (
-                    <button
-                      key="add"
-                      onClick={() => setSheet({ open: true, edit: null })}
-                      className="drop-in shelf-item group flex flex-col items-center gap-1.5 pb-1"
-                      style={{ ["--i" as any]: idx }}
-                      aria-label="เพิ่มสกินแคร์"
-                    >
-                      <span className="grid h-[80px] w-[64px] place-items-center rounded-[20px] border-2 border-dashed border-brand-200 bg-brand-50/60 text-brand-400 transition group-hover:border-brand-300 group-hover:bg-brand-50">
-                        <Plus className="h-6 w-6" strokeWidth={2.4} />
+                    <button key="add" onClick={() => setSheet({ open: true, edit: null })} className="drop-in shelf-item group flex justify-center" style={{ ["--i" as any]: idx }} aria-label="เพิ่มสกินแคร์">
+                      <span className="grid h-[78px] w-[58px] place-items-center rounded-t-[26px] rounded-b-[14px] border-2 border-dashed border-brand-300 bg-white/70 text-brand-400 transition group-hover:bg-white">
+                        <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-100">
+                          <Plus className="h-5 w-5" strokeWidth={2.6} />
+                        </span>
                       </span>
-                      <span className="text-[12px] font-medium text-brand-500">เพิ่ม</span>
                     </button>
                   );
-                const u = usage[String(it.id)];
+                const id = String(it.id);
+                const u = usage[id];
+                const seed = seedOf(id);
+                const poked = poke === id;
                 return (
-                  <button
-                    key={String(it.id)}
-                    onClick={() => open(it)}
-                    className="drop-in shelf-item relative flex min-w-0 flex-col items-center gap-1.5 pb-1"
-                    style={{ ["--i" as any]: idx }}
-                    aria-label={it.name}
-                  >
-                    <span key={poke === String(it.id) ? "poke" : "idle"} className={poke === String(it.id) ? "jiggle" : ""} onAnimationEnd={() => setPoke(null)}>
-                      <ProductArt p={it} size={64} />
+                  <button key={id} onClick={() => open(it)} className="drop-in shelf-item relative flex min-w-0 justify-center" style={{ ["--i" as any]: idx }} aria-label={it.name}>
+                    <span className="sway block" style={{ animationDuration: `${3.2 + (seed % 17) / 10}s`, animationDelay: `-${(seed % 30) / 10}s` }}>
+                      <span key={poked ? "poke" : "idle"} className={`block ${poked ? "jiggle" : ""}`}>
+                        <ProductArt p={it} size={62} face mood={poked ? "happy" : "smile"} />
+                      </span>
                     </span>
+                    {poked && (
+                      <span className="pointer-events-none absolute inset-x-0 top-0 flex justify-center" aria-hidden>
+                        {[-16, 0, 16].map((x, k) => (
+                          <Heart key={k} className="heart-rise absolute top-0 left-1/2 -ml-[7px] h-3.5 w-3.5 fill-brand-400 text-brand-400" style={{ ["--x" as any]: `${x}px`, animationDelay: `${k * 90}ms` }} />
+                        ))}
+                      </span>
+                    )}
                     {u && (
-                      <span className="absolute top-0 right-1 flex gap-0.5">
+                      <span className="absolute -top-1 right-1 flex gap-0.5">
                         {u.am && (
                           <span className="grid h-5 w-5 place-items-center rounded-full bg-amber-100 text-amber-600 ring-2 ring-white" title="ใช้ตอนเช้า">
                             <Sun className="h-3 w-3" strokeWidth={2.4} />
@@ -107,12 +164,40 @@ export default function ShelfPage() {
                         )}
                       </span>
                     )}
-                    <span className="line-clamp-2 w-full px-0.5 text-center text-[12px] leading-tight font-medium break-words">{it.name}</span>
                   </button>
                 );
               })}
             </div>
-            <div className="shelf-plank relative -mt-1 h-3.5 rounded-full" />
+
+            {/* the plank, with little brackets */}
+            <div className="relative -mt-1">
+              <div className="shelf-plank relative h-4 rounded-full" />
+              <span className="shelf-bracket absolute top-3 left-6" aria-hidden />
+              <span className="shelf-bracket shelf-bracket-r absolute top-3 right-6" aria-hidden />
+            </div>
+
+            {/* name tags under the plank */}
+            <div className="relative grid grid-cols-3 gap-1 px-1 pt-1.5">
+              {Array.from({ length: PER_ROW }, (_, ci) => {
+                const it = row[ci];
+                if (!it) return <span key={ci} />;
+                if (it === "add")
+                  return (
+                    <span key={ci} className="flex justify-center">
+                      <button onClick={() => setSheet({ open: true, edit: null })} className="name-tag bg-brand-500 text-white">
+                        เพิ่มชิ้นใหม่
+                      </button>
+                    </span>
+                  );
+                return (
+                  <span key={ci} className="flex min-w-0 justify-center">
+                    <button onClick={() => open(it)} className="name-tag max-w-full bg-white text-ink" tabIndex={-1}>
+                      <span className="line-clamp-2 [overflow-wrap:normal] [word-break:normal]">{it.name}</span>
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
           </div>
         ))}
       </section>
