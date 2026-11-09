@@ -11,7 +11,7 @@ import { cloudEnabled, sb, supabaseUrl } from "@/lib/supabase";
 import { download } from "@/lib/zip";
 import { exportZip, readBackup, restorePhotos } from "@/lib/backup";
 import { clearPhotos } from "@/lib/photos";
-import { clearLocal, pendingCount } from "@/lib/store";
+import { pendingCount, resetData } from "@/lib/store";
 import { disablePush, enablePush, pushState, type PushState } from "@/lib/push";
 import { PageTitle, Section } from "@/components/ui";
 import { CheckChips, Select, Stepper, Swatches, Switch, TimePicker } from "@/components/controls";
@@ -303,13 +303,17 @@ export default function SettingsPage() {
         <button
           className="flex w-full items-center justify-center gap-1.5 rounded-full py-2.5 text-sm text-red-500 active:bg-red-50"
           onClick={async () => {
-            if (!confirm("ลบข้อมูลทั้งหมดในเครื่องนี้ (รวมรูปหน้า)? ลบแล้วกู้คืนไม่ได้ถ้ายังไม่ได้สำรอง")) return;
-            clearLocal();
-            await clearPhotos();
-            window.location.href = "/";
+            if (!confirm("รีเซ็ตตาราง ประวัติการติ๊ก คะแนนผิว และรูปหน้าทั้งหมด? (ชั้นวางสกินแคร์และการตั้งค่ายังอยู่) ลบแล้วกู้คืนไม่ได้ถ้ายังไม่ได้สำรอง")) return;
+            try {
+              await resetData();
+              await clearPhotos();
+              window.location.href = "/";
+            } catch (err: any) {
+              flash("รีเซ็ตไม่สำเร็จ: " + (err?.message || err), false);
+            }
           }}
         >
-          <Trash2 className="h-4 w-4" /> ลบข้อมูลในเครื่องนี้
+          <Trash2 className="h-4 w-4" /> รีเซ็ตตารางและประวัติ
         </button>
       </Section>
     </div>

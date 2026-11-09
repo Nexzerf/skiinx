@@ -8,3 +8,7 @@ export function analyzeProduct(p: { name?: string; brand?: string | null; ingred
 export function isStrong(p: { actives?: string[] }): boolean;
 export function has(p: { actives?: string[] }, a: string): boolean;
 export function isAcid(p: { actives?: string[] }): boolean;
+export const INGREDIENTS: Record<string, { label: string; en: string; group?: string; alt?: string; strong?: boolean }>;
+export const INGREDIENT_KEYS: string[];
+export function ingredientLabel(k: string): string;
+export function searchIngredients(q: string, exclude?: string[]): string[];

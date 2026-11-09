@@ -320,3 +320,18 @@ export const cacheOwner = () => get<string | null>(K.owner, null);
 export function clearLocal() {
   for (const k of Object.values(K)) localStorage.removeItem(k);
 }
+
+/**
+ * Start over: delete schedules, check-ins and skin scores — in the cloud too (clearing only the
+ * local cache made everything come straight back on the next sync). The shelf (products) and
+ * settings are kept. RLS limits the deletes to the signed-in user's own rows.
+ */
+export async function resetData() {
+  if (cloudEnabled) {
+    for (const table of ["checkins", "skin_logs", "schedules"] as const) {
+      const { error } = await sb().from(table).delete().not("user_id", "is", null);
+      if (error) throw new Error(error.message);
+    }
+  }
+  for (const k of [K.schedules, K.checkins, K.skin, K.pending]) localStorage.removeItem(k);
+}

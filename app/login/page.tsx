@@ -34,6 +34,25 @@ export default function Login() {
       if (/อีเมล/.test(e)) setShowEmail(true);
     }
   }, []);
+  // Coming back from Discord with the back button restores this page from the back/forward
+  // cache with the spinner still on — put the buttons back so the user can try again.
+  useEffect(() => {
+    const reset = () => setState((s) => (s === "discord" ? "idle" : s));
+    const onShow = (e: PageTransitionEvent) => e.persisted && reset();
+    const onVisible = () => document.visibilityState === "visible" && reset();
+    window.addEventListener("pageshow", onShow);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("pageshow", onShow);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
+  // safety net: if the redirect never happens, don't spin forever
+  useEffect(() => {
+    if (state !== "discord") return;
+    const t = setTimeout(() => setState("idle"), 10_000);
+    return () => clearTimeout(t);
+  }, [state]);
 
   if (!cloudEnabled) return <p className="py-20 text-center text-muted">ข้อมูลทั้งหมดเก็บอยู่บนเครื่องนี้</p>;
 

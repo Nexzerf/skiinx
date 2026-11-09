@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ImagePlus, LoaderCircle, PenLine, Search, Shapes, Sparkles, Trash2, TriangleAlert, X } from "lucide-react";
 import { Sheet } from "./Sheet";
 import { ICON_KEYS, PRODUCT_COLORS, PRODUCT_ICONS, ProductArt, defaultColor, defaultIcon } from "./ProductArt";
-import { ACTIVES, ACTIVE_KEYS, CATEGORIES, CATEGORY_KEYS, analyzeProduct } from "@/lib/ingredients.js";
+import { ACTIVES, ACTIVE_KEYS, CATEGORIES, CATEGORY_KEYS, INGREDIENTS, analyzeProduct, searchIngredients } from "@/lib/ingredients.js";
 import { defaultHowto } from "@/lib/routineEngine.js";
 import { searchProducts, type FoundProduct } from "@/lib/obf";
 import { shrinkImage } from "@/lib/image";
@@ -417,6 +417,13 @@ export function ProductSheet({ open, onClose, edit, usedIn, onSaved }: { open: b
                 );
               })}
             </div>
+            <IngredientPicker
+              value={d.actives}
+              onChange={(actives) => {
+                setTouched((t) => ({ ...t, actives: true }));
+                set({ actives });
+              }}
+            />
             <p className="mt-1.5 text-xs text-muted">ใช้จัดลำดับและเช็กตัวที่ห้ามใช้คู่กัน ไม่แน่ใจปล่อยว่างได้</p>
           </div>
 
@@ -443,5 +450,92 @@ export function ProductSheet({ open, onClose, edit, usedIn, onSaved }: { open: b
         </div>
       )}
     </Sheet>
+  );
+}
+
+/** Searchable list of specific ingredients (beyond the quick chips above). */
+function IngredientPicker({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const picked = value.filter((k) => INGREDIENTS[k]);
+  const results = useMemo(() => searchIngredients(q, picked), [q, picked.join()]);
+  const add = (k: string) => {
+    // also switch on its group chip (e.g. Glycolic → AHA) so every rule sees it
+    const g = INGREDIENTS[k].group;
+    onChange([...value, ...(g && !value.includes(g) ? [g] : []), k]);
+    setQ("");
+  };
+  return (
+    <div className="mt-2.5 space-y-2">
+      {picked.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {picked.map((k) => {
+            const it = INGREDIENTS[k];
+            const strong = it.strong || (it.group && ACTIVES[it.group]?.strong);
+            return (
+              <button
+                key={k}
+                onClick={() => onChange(value.filter((x) => x !== k))}
+                className={`pop flex h-9 items-center gap-1.5 rounded-full pr-2.5 pl-3 text-sm font-medium text-white transition active:scale-95 ${strong ? "bg-violet-500" : "bg-brand-500"}`}
+                aria-label={`เอา ${it.label} ออก`}
+              >
+                {it.label}
+                <X className="h-3.5 w-3.5 opacity-80" strokeWidth={3} />
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div className="relative">
+        <Search className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-muted" />
+        <input
+          className="input pl-10"
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && results[0]) {
+              e.preventDefault();
+              add(results[0]);
+            }
+            if (e.key === "Escape") setOpen(false);
+          }}
+          placeholder={`ค้นหาส่วนผสมอื่น (${Object.keys(INGREDIENTS).length} ชนิด) เช่น เปปไทด์, Tranexamic`}
+          aria-label="ค้นหาส่วนผสม"
+        />
+      </div>
+      {open && (
+        <div className="overflow-hidden rounded-2xl bg-white shadow-soft ring-1 ring-brand-100">
+          <ul className="max-h-60 overflow-y-auto overscroll-contain py-1">
+            {results.length === 0 && <li className="px-4 py-3 text-sm text-muted">ไม่พบ “{q}” — ลองพิมพ์ชื่อภาษาอังกฤษ</li>}
+            {results.map((k) => {
+              const it = INGREDIENTS[k];
+              return (
+                <li key={k}>
+                  <button
+                    // keep focus in the field so the list stays open for picking several
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => add(k)}
+                    className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left active:bg-brand-50"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">{it.label}</span>
+                      <span className="block truncate text-xs text-muted">{it.en}</span>
+                    </span>
+                    {it.group && <span className="chip shrink-0 bg-brand-50 text-brand-600">{ACTIVES[it.group].label}</span>}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <button className="w-full border-t border-brand-50 py-2 text-center text-xs text-muted" onClick={() => setOpen(false)}>
+            ปิดรายการ
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

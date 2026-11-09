@@ -185,3 +185,17 @@ test("buffer acids in an ingredient list don't make an exfoliant", () => {
   assert.ok(b.actives.includes("bha") && !b.actives.includes("aha"));
   assert.ok(analyzeProduct({ name: "Lactic Acid 10% + HA" }).actives.includes("aha"));
 });
+
+test("specific ingredients count as their rule group", async () => {
+  const ing = await import("../lib/ingredients.js");
+  const p = { actives: ["glycolic", "peptide"] };
+  assert.equal(ing.has(p, "aha"), true);
+  assert.equal(ing.isAcid(p), true);
+  assert.equal(ing.isStrong(p), true);
+  assert.equal(ing.isStrong({ actives: ["peptide", "ceramide"] }), false);
+  assert.equal(ing.isStrong({ actives: ["hydroquinone"] }), true);
+  assert.deepEqual(ing.analyzeProduct({ name: "Moisture Cream", actives: ["peptide"] }).actives, ["peptide"]);
+  assert.equal(ing.searchIngredients("tranex")[0], "tranexamic");
+  assert.equal(ing.searchIngredients("เปปไทด์")[0], "peptide");
+  assert.ok(ing.searchIngredients("vitamin c").includes("laa"));
+});
