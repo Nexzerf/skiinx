@@ -95,8 +95,19 @@ function Focus() {
       </Shell>
     );
 
-  const step = steps[idx];
-  const isLast = idx === steps.length - 1;
+  if (!steps.length)
+    return (
+      <Shell slot={slot} info={info}>
+        <Empty icon={ClipboardList} title={`ไม่มีขั้นตอน${SLOT_LABEL[slot]}ในวันนี้`} sub="แก้ตารางใน Excel แล้วอัพโหลดใหม่ได้ที่หน้าตาราง">
+          <Link href="/" className="btn-primary">
+            <House className="h-4 w-4" /> หน้าแรก
+          </Link>
+        </Empty>
+      </Shell>
+    );
+
+  const step = steps[Math.min(idx, steps.length - 1)];
+  const isLast = idx >= steps.length - 1;
   const blocked = step?.timer?.kind === "hold" && !holdDone[idx];
   const Icon = productIcon(step);
 

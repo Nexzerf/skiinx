@@ -8,6 +8,7 @@ import * as store from "./store";
 import { cloudEnabled, sb } from "./supabase";
 import { clearNotification } from "./push";
 import type { Checkin, ScheduleRow, SkinLog, Slot, Snapshot } from "./types";
+import Splash from "@/components/Splash";
 
 type Ctx = {
   ready: boolean;
@@ -42,6 +43,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [email, setEmail] = useState<string | null>(null);
+  const [splash, setSplash] = useState(true);
+  const [minShown, setMinShown] = useState(false);
+  const hideSplash = useCallback(() => setSplash(false), []);
+  const signedIn = useRef(false);
+  const userIdRef = useRef<string | undefined>(undefined);
   const snapRef = useRef(snap);
   snapRef.current = snap;
   const router = useRouter();
@@ -49,12 +55,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const reload = useCallback(async () => {
     try {
-      setSnap(await store.loadAll());
+      setSnap(await store.loadAll(userIdRef.current));
     } catch (e) {
       console.warn(e);
       setSnap(store.cached());
     }
     setReady(true);
+  }, []);
+
+  // keep the launch screen up for a beat so it never just flickers
+  useEffect(() => {
+    const t = setTimeout(() => setMinShown(true), 650);
+    return () => clearTimeout(t);
   }, []);
 
   // auth gate (cloud mode) + first load
@@ -64,21 +76,35 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setReady(true);
       return;
     }
-    setSnap(store.cached()); // instant paint from cache, then refresh
     const auth = sb().auth;
+    const enter = async (userId: string, mail: string | null) => {
+      if (signedIn.current && userIdRef.current === userId) return;
+      signedIn.current = true;
+      userIdRef.current = userId;
+      setEmail(mail);
+      await reload();
+      if (window.location.pathname === "/login") router.replace("/");
+    };
     auth.getSession().then(({ data }) => {
-      if (!data.session) {
-        if (path !== "/login") router.replace("/login");
+      const s = data.session;
+      if (!s) {
+        if (window.location.pathname !== "/login") router.replace("/login");
         setReady(true);
         return;
       }
-      setEmail(data.session.user.email ?? null);
-      reload();
+      if (store.cacheOwner() === s.user.id) setSnap(store.cached()); // instant paint from this user's cache
+      enter(s.user.id, s.user.email ?? null);
     });
     const { data: sub } = auth.onAuthStateChange((ev, session) => {
-      setEmail(session?.user.email ?? null);
-      if (ev === "SIGNED_IN") reload();
-      if (ev === "SIGNED_OUT") router.replace("/login");
+      if (ev === "SIGNED_IN" && session) enter(session.user.id, session.user.email ?? null);
+      if (ev === "SIGNED_OUT") {
+        signedIn.current = false;
+        userIdRef.current = undefined;
+        store.clearLocal(); // don't leave this account's data on a shared device
+        setSnap(EMPTY);
+        setEmail(null);
+        router.replace("/login");
+      }
     });
     return () => sub.subscription.unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -90,13 +116,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const onVis = () => {
       if (document.visibilityState === "visible") {
         setNow(new Date());
-        if (cloudEnabled) reload();
+        if (cloudEnabled && signedIn.current) reload();
       }
     };
     const onOnline = () => {
-      store.flushPending().then(() => {
-        if (cloudEnabled) reload();
-      });
+      if (!signedIn.current) return;
+      store.flushPending().then(() => reload());
     };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("online", onOnline);
@@ -164,7 +189,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     reload,
     email,
   };
-  return <C.Provider value={value}>{children}</C.Provider>;
+  return (
+    <C.Provider value={value}>
+      {children}
+      {splash && <Splash done={ready && minShown} onGone={hideSplash} />}
+    </C.Provider>
+  );
 }
 
 export function useData() {

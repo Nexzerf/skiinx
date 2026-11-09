@@ -28,12 +28,12 @@ export function SectionHeader({ title, href, action, onAction }: { title: string
       <h2 className="text-[17px] font-semibold">{title}</h2>
       {action &&
         (href ? (
-          <Link href={href} className="flex items-center text-sm font-medium text-brand-500">
+          <Link href={href} className="-my-2.5 flex items-center rounded-full px-2 py-2.5 text-sm font-medium text-brand-500 active:bg-brand-50">
             {action}
             <ChevronRight className="h-4 w-4" />
           </Link>
         ) : (
-          <button onClick={onAction} className="flex items-center text-sm font-medium text-brand-500">
+          <button onClick={onAction} className="-my-2.5 flex items-center rounded-full px-2 py-2.5 text-sm font-medium text-brand-500 active:bg-brand-50">
             {action}
             <ChevronRight className="h-4 w-4" />
           </button>

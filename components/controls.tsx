@@ -1,7 +1,7 @@
 "use client";
 // Custom form controls (no native <select>/<input type=time>/checkbox look): consistent padding,
 // soft pink focus rings, animated popovers. All keyboard-closable with Escape.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Clock, Minus, Plus } from "lucide-react";
 
 function useDismiss(open: boolean, close: () => void) {
@@ -18,6 +18,19 @@ function useDismiss(open: boolean, close: () => void) {
     };
   }, [open, close]);
   return ref;
+}
+
+/** Opens upward when the panel would run under the bottom nav / off the screen. */
+function useFlip(open: boolean) {
+  const panel = useRef<any>(null);
+  const [up, setUp] = useState(false);
+  useLayoutEffect(() => {
+    if (!open) return setUp(false);
+    const p = panel.current?.getBoundingClientRect();
+    const host = panel.current?.parentElement?.getBoundingClientRect();
+    if (p && host && p.bottom > window.innerHeight - 104 && host.top - p.height - 8 > 8) setUp(true);
+  }, [open]);
+  return { panel, flip: up ? "bottom-full mb-2 mt-0 origin-bottom-right" : "" };
 }
 
 const trigger =
@@ -40,6 +53,7 @@ export function Select<T extends string | number>({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useDismiss(open, () => setOpen(false));
+  const { panel: listRef, flip } = useFlip(open);
   const current = options.find((o) => o.value === value);
   return (
     <div ref={ref} className={`relative ${className}`}>
@@ -48,7 +62,7 @@ export function Select<T extends string | number>({
         <ChevronDown className={`h-4 w-4 shrink-0 text-muted transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <ul role="listbox" className={`${panel} min-w-full w-max max-w-[16rem]`}>
+        <ul ref={listRef} role="listbox" className={`${panel} ${flip} min-w-full w-max max-w-[16rem]`}>
           {options.map((o) => {
             const sel = o.value === value;
             return (
@@ -106,6 +120,7 @@ export function TimePicker({ value, onChange, disabled }: { value: string; onCha
   const [open, setOpen] = useState(false);
   const ref = useDismiss(open, () => setOpen(false));
   const [h, m] = value.split(":");
+  const { panel: timeRef, flip: timeFlip } = useFlip(open);
   const hourCol = useRef<HTMLDivElement>(null);
   const minCol = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -123,7 +138,7 @@ export function TimePicker({ value, onChange, disabled }: { value: string; onCha
         <Clock className="h-4 w-4 text-brand-400" />
       </button>
       {open && (
-        <div className={`${panel} flex items-start gap-1`}>
+        <div ref={timeRef} className={`${panel} ${timeFlip} flex items-start gap-1`}>
           <TimeCol items={HOURS} cur={h} onPick={(v) => onChange(`${v}:${m}`)} refEl={hourCol} />
           <span className="self-center pb-1 text-lg font-semibold text-muted">:</span>
           {/* keep an off-grid minute (e.g. 07:32 from an older setting) selectable */}
@@ -143,6 +158,7 @@ export function DatePicker({ value, onChange, className = "" }: { value: string;
   const ref = useDismiss(open, () => setOpen(false));
   const [vy, vm, vd] = (value || new Date().toISOString().slice(0, 10)).split("-").map(Number);
   const [view, setView] = useState({ y: vy, m: vm - 1 });
+  const { panel: dateRef, flip: dateFlip } = useFlip(open);
   useEffect(() => {
     if (open) setView({ y: vy, m: vm - 1 });
   }, [open, vy, vm]);
@@ -157,7 +173,7 @@ export function DatePicker({ value, onChange, className = "" }: { value: string;
         <ChevronDown className={`h-4 w-4 text-muted transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className={`${panel} left-0 w-72 p-3`}>
+        <div ref={dateRef} className={`${panel} ${dateFlip} left-0 w-72 p-3`}>
           <div className="mb-2 flex items-center justify-between">
             <button type="button" className="grid h-8 w-8 place-items-center rounded-xl hover:bg-canvas" onClick={() => shift(-1)} aria-label="เดือนก่อน">
               <ChevronDown className="h-4 w-4 rotate-90" />
@@ -303,9 +319,9 @@ export function Swatches({ value, onChange }: { value: string; onChange: (v: str
         <button
           key={c}
           type="button"
-          aria-label={c}
+          aria-label={`เลือกสี ${c}`}
           onClick={() => onChange(c)}
-          className={`grid h-7 w-7 place-items-center rounded-full transition hover:scale-110 ${value.toLowerCase() === c ? "ring-2 ring-offset-2 ring-offset-white" : ""}`}
+          className={`grid h-9 w-9 place-items-center rounded-full transition hover:scale-110 ${value.toLowerCase() === c ? "ring-2 ring-offset-2 ring-offset-white" : ""}`}
           style={{ background: c, ["--tw-ring-color" as any]: c }}
         >
           {value.toLowerCase() === c && <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />}

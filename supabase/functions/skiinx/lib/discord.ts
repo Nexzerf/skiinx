@@ -145,7 +145,11 @@ let key: CryptoKey | null = null;
 export async function verify(req: Request, body: string): Promise<boolean> {
   const sig = req.headers.get("X-Signature-Ed25519");
   const ts = req.headers.get("X-Signature-Timestamp");
-  if (!sig || !ts) return false;
-  key ??= await crypto.subtle.importKey("raw", hex(env("DISCORD_PUBLIC_KEY")), { name: "Ed25519" }, false, ["verify"]);
-  return crypto.subtle.verify("Ed25519", key, hex(sig), new TextEncoder().encode(ts + body));
+  if (!sig || !ts || !/^[0-9a-f]{64}$/i.test(env("DISCORD_PUBLIC_KEY"))) return false;
+  try {
+    key ??= await crypto.subtle.importKey("raw", hex(env("DISCORD_PUBLIC_KEY")), { name: "Ed25519" }, false, ["verify"]);
+    return await crypto.subtle.verify("Ed25519", key, hex(sig), new TextEncoder().encode(ts + body));
+  } catch {
+    return false;
+  }
 }

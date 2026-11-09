@@ -235,7 +235,7 @@ function Upcoming() {
           })}
         </ul>
         {!open && (
-          <button className="flex w-full items-center justify-center gap-1 pt-1 text-xs text-muted" onClick={() => setOpen(true)}>
+          <button className="flex w-full items-center justify-center gap-1 py-2.5 text-xs text-muted" aria-label="แสดง 30 วันข้างหน้าทั้งหมด" onClick={() => setOpen(true)}>
             <ChevronDown className="h-4 w-4" />
           </button>
         )}

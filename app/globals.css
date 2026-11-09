@@ -200,6 +200,25 @@ input[type="range"] {
   pointer-events: none;
 }
 
+/* launch screen */
+@keyframes splash-in {
+  0% { opacity: 0; transform: scale(0.6) rotate(-8deg); }
+  60% { opacity: 1; transform: scale(1.08) rotate(2deg); }
+  100% { transform: none; }
+}
+@keyframes splash-breathe {
+  0%, 100% { transform: scale(1); box-shadow: 0 12px 28px -10px rgb(241 85 122 / 0.6); }
+  50% { transform: scale(1.04); box-shadow: 0 18px 40px -10px rgb(241 85 122 / 0.75); }
+}
+@keyframes splash-bar {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(220%); }
+}
+.splash-logo { animation: splash-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both, splash-breathe 2.2s ease-in-out 0.7s infinite; }
+.splash-word { animation: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both; }
+.splash-bar { animation: splash-bar 1.1s ease-in-out infinite; }
+.duration-450 { transition-duration: 450ms; }
+
 /* dropdown / time picker popovers */
 @keyframes panel-in {
   from { opacity: 0; transform: translateY(-6px) scale(0.97); }

@@ -312,7 +312,7 @@ export default function SettingsPage() {
         </div>
         <p className="text-xs text-muted">{settings.lastExportAt ? `สำรองล่าสุด ${settings.lastExportAt}` : "ยังไม่เคยสำรองข้อมูล"} · ไฟล์รวมรูปผิวทั้งหมด</p>
         <button
-          className="flex w-full items-center justify-center gap-1.5 pt-1 text-sm text-red-500"
+          className="flex w-full items-center justify-center gap-1.5 rounded-full py-2.5 text-sm text-red-500 active:bg-red-50"
           onClick={async () => {
             if (!confirm("ลบข้อมูลทั้งหมดในเครื่องนี้ (รวมรูปหน้า)? ลบแล้วกู้คืนไม่ได้ถ้ายังไม่ได้สำรอง")) return;
             clearLocal();
@@ -349,7 +349,7 @@ function Row({ label, icon: Icon, sub, children }: { label: string; icon?: any; 
 /** Tap days 1–30 to choose photo days. */
 function DayGrid({ value, onChange }: { value: number[]; onChange: (v: number[]) => void }) {
   return (
-    <div className="grid grid-cols-10 gap-1">
+    <div className="grid grid-cols-7 gap-1.5">
       {Array.from({ length: 30 }, (_, i) => i + 1).map((n) => {
         const on = value.includes(n);
         return (
@@ -357,7 +357,7 @@ function DayGrid({ value, onChange }: { value: number[]; onChange: (v: number[])
             key={n}
             type="button"
             onClick={() => onChange(on ? value.filter((x) => x !== n) : [...value, n].sort((a, b) => a - b))}
-            className={`aspect-square rounded-xl text-xs font-medium tabular-nums transition active:scale-90 ${
+            className={`h-10 rounded-xl text-sm font-medium tabular-nums transition active:scale-90 ${
               on ? "bg-linear-to-br from-brand-400 to-brand-500 text-white shadow-glow" : "bg-canvas text-ink/60 hover:bg-brand-50"
             }`}
           >

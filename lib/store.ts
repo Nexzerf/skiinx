@@ -11,6 +11,7 @@ const K = {
   settings: "sd.settings",
   skin: "sd.skinlogs",
   pending: "pendingCheckins",
+  owner: "sd.owner", // user id the cached copy belongs to (absent = data made without an account)
 };
 
 function get<T>(k: string, def: T): T {
@@ -85,8 +86,17 @@ export function flushPending(): Promise<number> {
 
 /* ───────── load ───────── */
 
-export async function loadAll(): Promise<Snapshot> {
+export async function loadAll(userId?: string): Promise<Snapshot> {
   if (!cloudEnabled) return cached();
+  // never show/sync one account's cached data under another account
+  const owner = get<string | null>(K.owner, null);
+  let local: Snapshot | null = null;
+  if (userId && owner && owner !== userId) clearLocal();
+  else if (userId && !owner) {
+    const c = cached();
+    if (c.schedules.length || c.checkins.length || c.skinLogs.length) local = c;
+  }
+  if (userId) put(K.owner, userId);
   await flushPending();
   const since = new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10);
   const [s, c, st, l] = await Promise.all([
@@ -111,6 +121,14 @@ export async function loadAll(): Promise<Snapshot> {
     settings,
     skinLogs: (l.data || []) as SkinLog[],
   };
+  // first sign-in on a device that was used without an account: carry that data up once
+  if (local && !snap.schedules.length && !snap.checkins.length && !snap.skinLogs.length) {
+    try {
+      return await importSnapshot(snap, { ...local, settings: { ...local.settings, data: { ...local.settings.data } } });
+    } catch (e) {
+      console.warn("migrating local data failed", e);
+    }
+  }
   cache(snap);
   return snap;
 }
@@ -216,13 +234,16 @@ export async function importSnapshot(snap: Snapshot, data: Snapshot): Promise<Sn
       const { error } = await sb().from("skin_logs").upsert(data.skinLogs.map(strip));
       if (error) throw new Error(error.message);
     }
-    await sb().from("settings").update({ data: data.settings.data }).not("user_id", "is", null);
+    const { error } = await sb().from("settings").update({ data: data.settings.data }).not("user_id", "is", null);
+    if (error) throw new Error(error.message);
     return loadAll();
   }
   const next: Snapshot = { ...data, settings: { ...data.settings, ics_token: data.settings.ics_token || randomHex() } };
   cache(next);
   return next;
 }
+
+export const cacheOwner = () => get<string | null>(K.owner, null);
 
 export function clearLocal() {
   for (const k of Object.values(K)) localStorage.removeItem(k);
