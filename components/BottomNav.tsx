@@ -1,14 +1,14 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Camera, ClipboardList, House, Sparkles, type LucideIcon } from "lucide-react";
+import { CalendarDays, Camera, House, LibraryBig, Sparkles, type LucideIcon } from "lucide-react";
 import { useData } from "@/lib/data";
 import { slotStart } from "@/lib/util";
 import * as core from "@/lib/core.js";
 
 const LEFT: [string, string, LucideIcon][] = [
   ["/", "วันนี้", House],
-  ["/schedule", "ตาราง", ClipboardList],
+  ["/shelf", "ชั้นวาง", LibraryBig],
 ];
 const RIGHT: [string, string, LucideIcon][] = [
   ["/calendar", "ความคืบหน้า", CalendarDays],
@@ -29,7 +29,7 @@ export default function BottomNav() {
     : 0;
 
   const Item = ([href, label, Icon]: [string, string, LucideIcon]) => {
-    const active = href === "/" ? path === "/" : path.startsWith(href);
+    const active = href === "/" ? path === "/" : path.startsWith(href) || (href === "/shelf" && path.startsWith("/schedule"));
     return (
       <Link key={href} href={href} className={`relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${active ? "font-semibold text-brand-500" : "text-muted"}`}>
         <Icon key={String(active)} className={`h-[22px] w-[22px] transition ${active ? "bounce-in" : ""}`} strokeWidth={active ? 2.2 : 1.8} />

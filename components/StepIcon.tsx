@@ -2,6 +2,7 @@
 // Icons for routine steps (no emoji anywhere): product-type tile + ingredient chips.
 import { Droplets, FlaskConical, Layers, Pipette, RefreshCw, ScanFace, SprayCan, Sun, Timer, TestTube, Zap, type LucideIcon } from "lucide-react";
 import { IconTile } from "./ui";
+import { ProductArt } from "./ProductArt";
 
 export function productIcon(s: { name: string; product?: string; category?: string; flags?: any }): LucideIcon {
   const t = `${s.category} ${s.product} ${s.name}`.toLowerCase();
@@ -16,6 +17,13 @@ export function productIcon(s: { name: string; product?: string; category?: stri
 }
 
 export function StepTile({ step, size = 52 }: { step: any; size?: number }) {
+  // shelf products: their photo / bottle art
+  if (step.image || step.icon || step.cat)
+    return (
+      <span className="grid shrink-0 place-items-center rounded-2xl bg-linear-to-br from-brand-50 to-brand-100" style={{ width: size, height: size }}>
+        <ProductArt p={{ image: step.image, icon: step.icon, color: step.color, cat: step.cat }} size={Math.round(size * 0.62)} />
+      </span>
+    );
   return <IconTile icon={productIcon(step)} size={size} className="rounded-2xl bg-linear-to-br from-brand-50 to-brand-100" />;
 }
 

@@ -12,6 +12,7 @@ import HoldTimer from "@/components/HoldTimer";
 import TypeTag from "@/components/TypeTag";
 import { StepChips, productIcon } from "@/components/StepIcon";
 import { Empty, IconTile } from "@/components/ui";
+import { ProductArt } from "@/components/ProductArt";
 import type { Slot } from "@/lib/types";
 
 export default function FocusPage() {
@@ -64,8 +65,8 @@ function Focus() {
   if (!info)
     return (
       <Empty icon={ClipboardList} title="ยังไม่มีตารางสำหรับวันนี้">
-        <Link href="/schedule" className="btn-primary">
-          ไปหน้าตาราง
+        <Link href="/shelf" className="btn-primary">
+          ไปจัดรูทีน
         </Link>
       </Empty>
     );
@@ -145,7 +146,15 @@ function Focus() {
         <div key={idx} className={`${dir > 0 ? "slide-right" : "slide-left"} card mt-5 flex flex-1 flex-col items-center justify-center gap-3 px-6 py-8 text-center`}>
           <span className="relative">
             <span className="absolute inset-0 -m-3 rounded-full bg-brand-100/70 blur-xl" />
-            <span className="float relative block"><IconTile icon={Icon} size={104} className="relative rounded-[34px] bg-linear-to-br from-brand-50 to-brand-200" /></span>
+            <span className="float relative block">
+              {step.image || step.icon || step.cat ? (
+                <span className="relative grid h-[120px] w-[120px] place-items-center rounded-[38px] bg-linear-to-br from-brand-50 to-brand-200">
+                  <ProductArt p={{ image: step.image, icon: step.icon, color: step.color, cat: step.cat }} size={76} />
+                </span>
+              ) : (
+                <IconTile icon={Icon} size={104} className="relative rounded-[34px] bg-linear-to-br from-brand-50 to-brand-200" />
+              )}
+            </span>
           </span>
           {step.category && <span className="chip mt-2 bg-brand-50 px-3 py-1 text-xs text-brand-600">{step.category}</span>}
           <h2 className="text-[28px] leading-tight font-bold">{step.name}</h2>

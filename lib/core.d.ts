@@ -33,6 +33,10 @@ export type Step = {
   timer: { min: number; max: number; kind: "hold" | "before" } | null;
   flags: { retinol: boolean; bha: boolean; aha: boolean; sunscreen: boolean; cleanser: boolean };
   swapped: boolean;
+  image?: string | null;
+  icon?: string | null;
+  color?: string | null;
+  cat?: string | null;
 };
 export type Issue = { level: "error" | "warn" | "info"; day: number | null; slot: "am" | "pm" | null; msg: string };
 export type ScheduleLike = { id: any; start_date: string; data: any; created_at: any; name?: string; [k: string]: any };
@@ -41,6 +45,7 @@ export type Streak = { current: number; best: number; status: Record<string, str
 export const DEFAULT_SETTINGS: Settings;
 export function withDefaults(s?: any): Settings;
 export function flagsOf(name: string): Step["flags"];
+export function stepFlags(name: string, product?: any): Step["flags"];
 export function splitSteps(cell: any): string[];
 export function buildSchedule(sheets: { name: string; rows: string[][] }[]): any;
 export function findProduct(step: string, schedule: any): any | null;

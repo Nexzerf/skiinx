@@ -19,10 +19,26 @@ export type SkinLog = {
   ai?: any; // SkinMetrics from the on-device analysis
   updated_at?: string;
 };
+export type Product = {
+  id: number | string;
+  name: string;
+  brand: string | null;
+  category: string;
+  actives: string[];
+  ingredients?: string | null;
+  howto?: string | null;
+  image_url?: string | null;
+  icon?: string | null;
+  color?: string | null;
+  source?: "manual" | "obf";
+  off_code?: string | null;
+  created_at?: string;
+};
 export type SettingsRow = { data: Record<string, any>; ics_token?: string | null };
 export type Snapshot = {
   schedules: ScheduleRow[];
   checkins: Checkin[];
   settings: SettingsRow;
   skinLogs: SkinLog[];
+  products: Product[];
 };

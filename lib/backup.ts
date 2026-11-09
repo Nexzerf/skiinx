@@ -24,6 +24,7 @@ export async function readBackup(file: Blob): Promise<{ data: Snapshot; photos: 
     checkins: raw.checkins || [],
     settings: raw.settings || { data: {} },
     skinLogs: raw.skinLogs || [],
+    products: raw.products || [],
   };
   const meta: any[] = files["photos.json"] ? JSON.parse(td.decode(files["photos.json"])) : [];
   const photos: Photo[] = meta

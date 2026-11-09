@@ -11,8 +11,13 @@ export default async function handler(req: Request): Promise<Response> {
   if (!env("CRON_SECRET") || req.headers.get("x-cron-secret") !== env("CRON_SECRET")) return json({ error: "unauthorized" }, 401);
   const db = admin();
   const now = new Date();
-  const { data: rows, error } = await db.from("settings").select("*");
-  if (error) return json({ error: error.message }, 500);
+  const [{ data: all, error }, { data: mem, error: mErr }] = await Promise.all([
+    db.from("settings").select("*"),
+    db.from("skiinx_members").select("user_id"),
+  ]);
+  if (error || mErr) return json({ error: (error || mErr)!.message }, 500);
+  const members = new Set((mem || []).map((m: any) => m.user_id));
+  const rows = (all || []).filter((r: any) => members.has(r.user_id));
 
   const report: any[] = [];
   for (const row of rows || []) {

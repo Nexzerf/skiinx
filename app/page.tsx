@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { BellRing, Camera, ClipboardList, HeartPulse, Lightbulb, Moon, NotebookPen, RefreshCw, Settings, Sparkles, Sun, X, type LucideIcon } from "lucide-react";
+import { BellRing, Camera, ChevronRight, ClipboardList, FileSpreadsheet, LibraryBig, Wand2, HeartPulse, Lightbulb, Moon, NotebookPen, RefreshCw, Settings, Sparkles, Sun, X, type LucideIcon } from "lucide-react";
 import { useData } from "@/lib/data";
 import RoutineCard from "@/components/RoutineCard";
 import TypeTag from "@/components/TypeTag";
@@ -51,15 +51,40 @@ export default function Today() {
     return (
       <div className="space-y-4">
         {header}
-        <Empty
-          icon={ClipboardList}
-          title="ยังไม่มีตารางสกินแคร์"
-          sub={snap.schedules.length ? "ตารางที่อัพโหลดไว้ยังไม่ถึงวันเริ่ม หรือถูกปิดใช้อยู่" : "อัพโหลดไฟล์ Excel ตาราง 30 วันเพื่อเริ่มใช้งาน"}
-        >
-          <Link href="/schedule" className="btn-primary mt-2">
-            <ClipboardList className="h-4 w-4" /> ไปหน้าตาราง
-          </Link>
-        </Empty>
+        {snap.schedules.length > 0 ? (
+          <Empty icon={ClipboardList} title="วันนี้ยังไม่มีรูทีน" sub="ตารางที่มีอยู่ยังไม่ถึงวันเริ่ม หรือถูกปิดใช้อยู่">
+            <Link href="/schedule" className="btn-primary mt-2">
+              <ClipboardList className="h-4 w-4" /> ดูตารางของฉัน
+            </Link>
+          </Empty>
+        ) : (
+          <div className="stagger space-y-3 pt-2">
+            <div className="px-1">
+              <p className="text-lg font-semibold">เริ่มยังไงดี?</p>
+              <p className="text-sm text-muted">เลือกทางที่สะดวก เปลี่ยนทีหลังได้เสมอ</p>
+            </div>
+            <Link href={snap.products.length ? "/shelf/routine" : "/shelf"} className="hero press flex items-center gap-3">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/25">
+                {snap.products.length ? <Wand2 className="h-6 w-6" /> : <LibraryBig className="h-6 w-6" />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[17px] font-bold">{snap.products.length ? "ให้ระบบจัดรูทีนให้" : "เพิ่มสกินแคร์ที่มี"}</span>
+                <span className="block text-sm text-white/85">{snap.products.length ? `จาก ${snap.products.length} ชิ้นบนชั้นวาง` : "แล้วระบบจัดลำดับและรอบคืนให้ ไม่ต้องทำตาราง"}</span>
+              </span>
+              <ChevronRight className="h-5 w-5 shrink-0" />
+            </Link>
+            <Link href="/schedule" className="card press flex items-center gap-3">
+              <span className="icon-tile h-12 w-12 rounded-2xl">
+                <FileSpreadsheet className="h-6 w-6" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold">มีตาราง Excel อยู่แล้ว</span>
+                <span className="block text-sm text-muted">นำเข้าไฟล์ หรือดาวน์โหลดเทมเพลต</span>
+              </span>
+              <ChevronRight className="h-5 w-5 shrink-0 text-muted" />
+            </Link>
+          </div>
+        )}
       </div>
     );
 

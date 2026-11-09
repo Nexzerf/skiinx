@@ -7,9 +7,11 @@ import * as core from "./core.js";
 import * as store from "./store";
 import { cloudEnabled, sb } from "./supabase";
 import { clearNotification } from "./push";
-import type { Checkin, ScheduleRow, SkinLog, Slot, Snapshot } from "./types";
+import type { Checkin, Product, ScheduleRow, SkinLog, Slot, Snapshot } from "./types";
 import Splash from "@/components/Splash";
 import { captureAuthError } from "./authError";
+import { REDEEM_TEXT, captureInvite, ensureMembership } from "./members";
+import JoinGate from "@/components/JoinGate";
 
 type Ctx = {
   ready: boolean;
@@ -32,18 +34,24 @@ type Ctx = {
   regenerateIcsToken: () => Promise<void>;
   upsertSkinLog: (log: SkinLog) => Promise<void>;
   importSnapshot: (s: Snapshot) => Promise<void>;
+  addProduct: (p: Omit<Product, "id">) => Promise<void>;
+  updateProduct: (id: Product["id"], patch: Partial<Product>) => Promise<void>;
+  deleteProduct: (id: Product["id"]) => Promise<void>;
   reload: () => Promise<void>;
   email: string | null;
+  role: string | null; // "owner" | "member" in cloud mode
 };
 
 const C = createContext<Ctx | null>(null);
-const EMPTY: Snapshot = { schedules: [], checkins: [], settings: { data: {} }, skinLogs: [] };
+const EMPTY: Snapshot = { schedules: [], checkins: [], settings: { data: {} }, skinLogs: [], products: [] };
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const [snap, setSnap] = useState<Snapshot>(EMPTY);
   const [ready, setReady] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [email, setEmail] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
+  const [gate, setGate] = useState<{ error: string | null } | null>(null); // signed in but not a member
   const [splash, setSplash] = useState(true);
   const [minShown, setMinShown] = useState(false);
   const hideSplash = useCallback(() => setSplash(false), []);
@@ -78,19 +86,36 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     captureAuthError();
+    captureInvite();
     const auth = sb().auth;
     const enter = async (userId: string, mail: string | null) => {
       if (signedIn.current && userIdRef.current === userId) return;
       signedIn.current = true;
       userIdRef.current = userId;
       setEmail(mail);
+      // members only — the first account becomes the owner, others need an invite
+      let m: Awaited<ReturnType<typeof ensureMembership>> | null = null;
+      try {
+        m = await ensureMembership();
+      } catch (e) {
+        console.warn("membership check failed", e); // offline: fall through to the cached data
+      }
+      if (m && !m.role) {
+        setGate({ error: m.redeem && m.redeem !== "ok" ? REDEEM_TEXT[m.redeem] : null });
+        setReady(true);
+        return;
+      }
+      setRole(m?.role ?? null);
+      setGate(null);
       await reload();
-      if (window.location.pathname === "/login") router.replace("/");
+      const p = window.location.pathname;
+      if (p === "/login" || p === "/join") router.replace("/");
     };
     auth.getSession().then(({ data }) => {
       const s = data.session;
       if (!s) {
         if (window.location.pathname !== "/login") router.replace("/login");
+        setSnap(EMPTY);
         setReady(true);
         return;
       }
@@ -105,6 +130,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         store.clearLocal(); // don't leave this account's data on a shared device
         setSnap(EMPTY);
         setEmail(null);
+        setRole(null);
+        setGate(null);
         router.replace("/login");
       }
     });
@@ -188,12 +215,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     regenerateIcsToken: wrap(store.regenerateIcsToken) as any,
     upsertSkinLog: wrap(store.upsertSkinLog) as any,
     importSnapshot: wrap(store.importSnapshot) as any,
+    addProduct: wrap(store.addProduct) as any,
+    updateProduct: wrap(store.updateProduct) as any,
+    deleteProduct: wrap(store.deleteProduct) as any,
     reload,
     email,
+    role,
   };
   return (
     <C.Provider value={value}>
-      {children}
+      {gate ? (
+        <JoinGate
+          initialError={gate.error}
+          onJoined={async () => {
+            setGate(null);
+            setRole("member");
+            await reload();
+            router.replace("/");
+          }}
+        />
+      ) : (
+        children
+      )}
       {splash && <Splash done={ready && minShown} onGone={hideSplash} />}
     </C.Provider>
   );

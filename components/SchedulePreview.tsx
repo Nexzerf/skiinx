@@ -34,8 +34,8 @@ export default function SchedulePreview({ data, collapsed, title, highlight }: {
 
   return (
     <div className="card">
-      <button className="flex w-full items-center justify-between font-semibold" onClick={() => setOpen(!open)}>
-        {title || "พรีวิวตาราง"} {open ? <ChevronUp className="h-5 w-5 text-muted" /> : <ChevronDown className="h-5 w-5 text-muted" />}
+      <button className="-my-2.5 flex w-full items-center justify-between gap-2 py-2.5 text-left font-semibold" onClick={() => setOpen(!open)} aria-expanded={open}>
+        <span className="min-w-0 truncate">{title || "พรีวิวตาราง"}</span> {open ? <ChevronUp className="h-5 w-5 text-muted" /> : <ChevronDown className="h-5 w-5 text-muted" />}
       </button>
       {open && (
         <>

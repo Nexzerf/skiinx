@@ -5,10 +5,12 @@ import { useData } from "@/lib/data";
 import * as core from "@/lib/core.js";
 import { readXlsx } from "@/lib/xlsx.js";
 import { thDate } from "@/lib/util";
-import { download } from "@/lib/zip";
+import { download, makeZip } from "@/lib/zip";
+import { templateSheets, xlsxParts } from "@/lib/template.js";
+import Link from "next/link";
 import SchedulePreview from "@/components/SchedulePreview";
 import IssueList from "@/components/IssueList";
-import { CircleX, Download, FileSpreadsheet, Lightbulb, Power, Save, Trash2, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, CircleX, Download, LibraryBig, FileSpreadsheet, Lightbulb, Power, Save, Trash2, Upload } from "lucide-react";
 import { IconTile, PageTitle, Section } from "@/components/ui";
 import { Checkbox, DatePicker } from "@/components/controls";
 
@@ -76,7 +78,36 @@ export default function SchedulePage() {
 
   return (
     <div className="stagger space-y-4">
-      <PageTitle title="ตารางของฉัน" sub="อัพโหลด Excel 30 วัน แล้วระบบวนรอบให้เอง" />
+      <PageTitle
+        title="ตารางของฉัน"
+        sub="นำเข้าจาก Excel แล้วระบบวนรอบให้เอง"
+        back={
+          <Link href="/shelf" className="icon-btn mt-0.5" aria-label="กลับไปชั้นวาง">
+            <ChevronLeft className="h-5 w-5" />
+          </Link>
+        }
+      />
+
+      {!parsed && (
+        <section className="card space-y-3">
+          <h2 className="font-semibold">ไฟล์ Excel ต้องมีอะไรบ้าง</h2>
+          <ul className="space-y-1.5 text-sm text-ink/80">
+            {[
+              ["แถวหัวตารางที่มีคอลัมน์ ", "เช้า", " และ ", "เย็น"],
+              ["แต่ละช่องใส่ขั้นตอนเรียงตามลำดับ คั่นด้วย ", "->"],
+              ["ไม่บังคับ: คอลัมน์ ", "รูปแบบคืน", " เช่น [A] ผลัดเซลล์ และชีต ", "สินค้า", " ที่มีวิธีใช้"],
+            ].map((parts, i) => (
+              <li key={i} className="flex gap-2">
+                <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand-50 text-[11px] font-bold text-brand-500">{i + 1}</span>
+                <span>{parts.map((p, k) => (k % 2 ? <b key={k} className="rounded-md bg-canvas px-1 font-semibold text-ink">{p}</b> : <span key={k}>{p}</span>))}</span>
+              </li>
+            ))}
+          </ul>
+          <button className="btn-ghost w-full" onClick={async () => download(await makeZip(xlsxParts(templateSheets())), "skiinx-template.xlsx")}>
+            <Download className="h-4 w-4" /> ดาวน์โหลดเทมเพลต
+          </button>
+        </section>
+      )}
 
       <label
         onDragOver={(e) => {
@@ -101,6 +132,19 @@ export default function SchedulePage() {
         <p className="flex items-start gap-2 rounded-2xl bg-red-50 p-3 text-sm text-red-700">
           <CircleX className="mt-0.5 h-4 w-4 shrink-0" /> {error}
         </p>
+      )}
+
+      {!parsed && (
+        <Link href="/shelf" className="card press flex items-center gap-3">
+          <span className="icon-tile h-11 w-11 rounded-xl">
+            <LibraryBig className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">ไม่มี Excel?</span>
+            <span className="block text-sm text-muted">เพิ่มสกินแคร์บนชั้นวาง แล้วให้ระบบจัดรูทีนให้</span>
+          </span>
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted" />
+        </Link>
       )}
 
       {parsed && (

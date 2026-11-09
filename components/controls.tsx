@@ -228,7 +228,7 @@ export function Switch({ checked, onChange, disabled, label }: { checked: boolea
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors duration-300 outline-none focus-visible:ring-4 focus-visible:ring-brand-100 disabled:opacity-40 ${
+      className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full before:absolute before:-inset-2 before:content-[''] transition-colors duration-300 outline-none focus-visible:ring-4 focus-visible:ring-brand-100 disabled:opacity-40 ${
         checked ? "bg-linear-to-r from-brand-400 to-brand-500 shadow-glow" : "bg-gray-200"
       }`}
     >

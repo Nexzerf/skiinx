@@ -35,7 +35,7 @@ const RE = {
   retinol: /retinol|retinal|เรตินอล|tretinoin|adapalene|retinoid/i,
   bha: /\bSA\b|salicylic|\bBHA\b|ซาลิไซลิก/i,
   aha: /\bAHA\b|glycolic|lactic|mandelic/i,
-  sunscreen: /sunscreen|กันแดด|\bSPF\b|sunblock/i,
+  sunscreen: /sunscreen|กันแดด|\bSPF|sunblock/i,
   cleanser: /cleanser|คลีนเซอร์|โฟม|ล้างหน้า|cleansing/i,
 };
 export const flagsOf = (name) => ({
@@ -177,6 +177,8 @@ export function buildSchedule(sheets) {
 /* ───────────────────────── steps & routines ───────────────────────── */
 
 export function findProduct(step, schedule) {
+  const exact = (schedule.products || []).find((p) => p.name === step);
+  if (exact) return exact;
   const st = tokens(step);
   let best = null, bestScore = 0;
   for (const p of schedule.products || []) {
@@ -188,9 +190,22 @@ export function findProduct(step, schedule) {
   return bestScore >= need ? best : null;
 }
 
+/** Flags from the step name, plus the product's known actives (shelf products carry them). */
+export function stepFlags(name, p) {
+  const f = flagsOf(`${name} ${p?.howto || ""}`);
+  const a = p?.actives || [];
+  return {
+    retinol: f.retinol || a.includes("retinoid"),
+    bha: f.bha || a.includes("bha"),
+    aha: f.aha || a.includes("aha"),
+    sunscreen: f.sunscreen || a.includes("spf") || p?.cat === "sunscreen",
+    cleanser: f.cleanser || p?.cat === "cleanser",
+  };
+}
+
 function gentleCleanser(schedule) {
   for (const d of schedule.days) for (const s of [...d.pm, ...d.am]) {
-    const f = flagsOf(s);
+    const f = stepFlags(s, findProduct(s, schedule));
     if (f.cleanser && !f.bha && !f.aha) return s;
   }
   return null;
@@ -205,7 +220,7 @@ export function routineFor(schedule, n, slot, { sensitive = false } = {}) {
   if (sensitive) {
     const gentle = gentleCleanser(schedule);
     if (gentle) names = names.map((s) => {
-      const f = flagsOf(s);
+      const f = stepFlags(s, findProduct(s, schedule));
       if (f.cleanser && (f.bha || f.aha)) { swapped = true; return gentle; }
       return s;
     });
@@ -222,8 +237,12 @@ export function routineFor(schedule, n, slot, { sensitive = false } = {}) {
       category: p?.category || "",
       howto: p?.howto || "",
       timer: mins ? { ...mins, kind: before ? "before" : "hold" } : null,
-      flags: flagsOf(text),
-      swapped: swapped && flagsOf(name).cleanser,
+      flags: stepFlags(name, p),
+      swapped: swapped && stepFlags(name, p).cleanser,
+      image: p?.image || null,
+      icon: p?.icon || null,
+      color: p?.color || null,
+      cat: p?.cat || null,
     };
   });
 }
@@ -233,21 +252,22 @@ export function routineFor(schedule, n, slot, { sensitive = false } = {}) {
 export function validateSchedule(schedule) {
   const issues = [];
   const L = schedule.days.length;
-  const retinolNight = schedule.days.map((d) => d.pm.some((s) => RE.retinol.test(s)));
+  const fl = (s) => stepFlags(s, findProduct(s, schedule));
+  const retinolNight = schedule.days.map((d) => d.pm.some((s) => fl(s).retinol));
   for (const d of schedule.days) {
     for (const slot of ["am", "pm"]) {
       const steps = d[slot];
       const where = { day: d.n, slot };
       if (!steps.length) { issues.push({ level: "error", ...where, msg: `ไม่มีขั้นตอน${slot === "am" ? "ตอนเช้า" : "ก่อนนอน"}` }); continue; }
-      const retinols = steps.filter((s) => RE.retinol.test(s));
-      const acids = steps.filter((s) => RE.bha.test(s) || RE.aha.test(s));
-      if (retinols.length && acids.length)
-        issues.push({ level: "error", ...where, msg: `ใช้กรด (${acids.join(", ")}) คู่กับ Retinol (${retinols.join(", ")}) ในรอบเดียวกัน — เสี่ยงแสบ ลอก` });
+      const retinols = steps.filter((s) => fl(s).retinol);
+      const acidAll = steps.filter((s) => { const f = fl(s); return (f.bha || f.aha) && !f.retinol; });
+      if (retinols.length && acidAll.length)
+        issues.push({ level: "error", ...where, msg: `ใช้กรด (${acidAll.join(", ")}) คู่กับ Retinol (${retinols.join(", ")}) ในรอบเดียวกัน — เสี่ยงแสบ ลอก` });
       if (retinols.length > 1)
         issues.push({ level: "error", ...where, msg: `มี Retinol ซ้ำซ้อน ${retinols.length} ตัว (${retinols.join(", ")})` });
       if (slot === "am" && retinols.length)
         issues.push({ level: "warn", ...where, msg: "มี Retinol ในตอนเช้า — Retinol ควรใช้ตอนกลางคืน" });
-      if (slot === "am" && !steps.some((s) => RE.sunscreen.test(s)))
+      if (slot === "am" && !steps.some((s) => fl(s).sunscreen))
         issues.push({ level: "warn", ...where, msg: "ตอนเช้าไม่มีกันแดด" });
     }
     const i = d.n - 1;

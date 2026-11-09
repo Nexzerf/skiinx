@@ -1,0 +1,10 @@
+export const CATEGORIES: Record<string, { label: string; order: number }>;
+export const CATEGORY_KEYS: string[];
+export const ACTIVES: Record<string, { label: string; strong: boolean }>;
+export const ACTIVE_KEYS: string[];
+export function detectActives(text: string): string[];
+export function guessCategory(name: string, tags?: string[]): string;
+export function analyzeProduct(p: { name?: string; brand?: string | null; ingredients?: string | null; category?: string; actives?: string[]; tags?: string[] }): { category: string; actives: string[] };
+export function isStrong(p: { actives?: string[] }): boolean;
+export function has(p: { actives?: string[] }, a: string): boolean;
+export function isAcid(p: { actives?: string[] }): boolean;

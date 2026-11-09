@@ -16,6 +16,7 @@ import { disablePush, enablePush, pushState, type PushState } from "@/lib/push";
 import { PageTitle, Section } from "@/components/ui";
 import { CheckChips, Select, Stepper, Swatches, Switch, TimePicker } from "@/components/controls";
 import DiscordLogo from "@/components/DiscordLogo";
+import InviteCard from "@/components/InviteCard";
 import { explainAuthError, takeAuthError } from "@/lib/authError";
 
 const PUSH_NOTE: Record<PushState, string> = {
@@ -126,6 +127,8 @@ export default function SettingsPage() {
           <p className="text-sm text-ink/75">ข้อมูลทั้งหมดเก็บอยู่บนเครื่องนี้</p>
         )}
       </Section>
+
+      {cloudEnabled && d.role && <InviteCard onError={(m) => flash(m, false)} />}
 
       <Section title="การแจ้งเตือน" icon={BellRing}>
         <Row label="แจ้งเตือนบนเครื่องนี้" icon={Smartphone} sub={PUSH_NOTE[push]}>

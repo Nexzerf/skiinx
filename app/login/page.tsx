@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ArrowRight, BellRing, ChevronDown, Droplets, Footprints, LoaderCircle, Mail, MailCheck, Moon, ScanFace, ShieldCheck, Sparkles, Sun, TriangleAlert, type LucideIcon } from "lucide-react";
+import { ArrowRight, BellRing, Ticket, ChevronDown, Droplets, Footprints, LoaderCircle, Mail, MailCheck, Moon, ScanFace, ShieldCheck, Sparkles, Sun, TriangleAlert, type LucideIcon } from "lucide-react";
 import { cloudEnabled, sb } from "@/lib/supabase";
 import { explainAuthError, takeAuthError } from "@/lib/authError";
+import { pendingInvite } from "@/lib/members";
 import DiscordLogo from "@/components/DiscordLogo";
 
 const FEATURES: [LucideIcon, string, string][] = [
@@ -24,7 +25,9 @@ export default function Login() {
   const [showEmail, setShowEmail] = useState(false);
   const [state, setState] = useState<"idle" | "discord" | "email" | "sent">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [invited, setInvited] = useState(false);
   useEffect(() => {
+    setInvited(!!pendingInvite());
     const e = takeAuthError();
     if (e) {
       setError(e);
@@ -96,6 +99,18 @@ export default function Login() {
             </li>
           ))}
         </ul>
+
+        {invited && !error && (
+          <p className="rise mt-4 flex w-full items-center gap-2.5 rounded-2xl bg-white p-3 text-sm shadow-soft ring-1 ring-brand-100">
+            <span className="icon-tile h-9 w-9 rounded-xl">
+              <Ticket className="h-4 w-4" />
+            </span>
+            <span className="text-left">
+              <b className="block">คุณได้รับคำเชิญ</b>
+              <span className="text-muted">เข้าสู่ระบบด้วย Discord เพื่อเริ่มใช้ได้เลย</span>
+            </span>
+          </p>
+        )}
 
         {error && (
           <p className="rise mt-4 flex w-full items-start gap-2 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800 ring-1 ring-amber-200">

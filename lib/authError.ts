@@ -31,7 +31,7 @@ export function takeAuthError(): string | null {
 export function explainAuthError(msg: string): string {
   const m = msg.toLowerCase();
   if (m.includes("not allowed to use skiinx"))
-    return "บัญชี Discord นี้ไม่มีสิทธิ์ใช้ Skiinx — แอพนี้ผูกกับบัญชี Discord ของเจ้าของไว้แล้ว";
+    return "บัญชี Discord นี้ยังไม่มีสิทธิ์ใช้ Skiinx — ขอลิงก์เชิญจากเพื่อนที่ใช้อยู่";
   if (m.includes("signup") && m.includes("otp"))
     return "ยังไม่มีบัญชีที่ใช้อีเมลนี้ — กด เข้าสู่ระบบด้วย Discord เพื่อสร้างบัญชี";
   if (m.includes("signup") && (m.includes("not allowed") || m.includes("disabled")))
