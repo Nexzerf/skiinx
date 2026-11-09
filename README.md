@@ -42,7 +42,8 @@ npm test             # core + skin metrics (ทดสอบกับไฟล์
    → Authentication → URL Configuration → Redirect URLs เพิ่ม `https://<app>.vercel.app/**`
    (login ด้วย Discord แล้ว ระบบรู้ Discord ID เอง ไม่ต้องตั้ง `DISCORD_USER_ID`)
    **โปรเจกต์ที่ปิดการสมัครไว้ (ใช้ร่วมกับแอพอื่น):** Authentication → Hooks → *Before User Created* → Postgres → `public.skiinx_before_user_created`
-   แล้วค่อยเปิด "Allow new users to sign up" — hook ยอมเฉพาะการสมัครด้วย Discord และบัญชี Discord แรกที่สมัครจะเป็นเจ้าของ (เก็บใน `skiinx_allowed_discord`) การสมัครแบบอื่นยังถูกปฏิเสธเหมือนเดิม
+   แล้วค่อยเปิด "Allow new users to sign up" — hook ยอมเฉพาะการสมัครด้วย Discord การสมัครแบบอื่นยังถูกปฏิเสธเหมือนเดิม
+   **ใครใช้ Skiinx ได้:** เฉพาะสมาชิก (`skiinx_members`) — บัญชีแรกเป็นเจ้าของ คนอื่นเข้าด้วยลิงก์เชิญจาก ตั้งค่า → ชวนเพื่อนมาใช้ (ลิงก์ใช้ได้ 1 คน 14 วัน) บัญชีที่ไม่ใช่สมาชิกจะเห็นหน้าใส่รหัสเชิญ และ RLS ไม่ให้เห็นข้อมูลใด ๆ
    หรือไม่ต้องเปิดการสมัคร: login ด้วยอีเมล → ตั้งค่า → เชื่อมบัญชี Discord (ต้องเปิด "Allow manual linking")
 7. **บอท Discord** (ข้ามได้) — Edge Functions → Secrets ใส่ `DISCORD_MODE=bot`, `DISCORD_BOT_TOKEN`, `DISCORD_PUBLIC_KEY`
    → Interactions Endpoint URL = `https://<ref>.supabase.co/functions/v1/skiinx/discord`
@@ -51,6 +52,11 @@ npm test             # core + skin metrics (ทดสอบกับไฟล์
 8. **มือถือ** — เพิ่มลงหน้าจอโฮม → เข้าสู่ระบบด้วย Discord → อัพโหลดตาราง → ตั้งค่า → เปิด "แจ้งเตือนบนเครื่องนี้" → ส่งแจ้งเตือนทดสอบ
 
 > Supabase Free พักโปรเจกต์ที่ไม่มีการใช้งาน 1 สัปดาห์ — ถ้าโดนพัก แจ้งเตือนจะหยุด แต่ .ics ยังเตือนอยู่
+
+### ชั้นวาง + จัดรูทีนอัตโนมัติ
+- ค้นหาสินค้าจาก [Open Beauty Facts](https://world.openbeautyfacts.org) (ฟรี ไม่ต้องใช้ key) ถ้าไม่เจอเพิ่มเองพร้อมรูป (bucket `product-images`) หรือไอคอน
+- `lib/ingredients.js` ตรวจประเภท/ตัวยาจากชื่อและส่วนผสม · `lib/routineEngine.js` จัดลำดับ แยกเรตินอยด์/กรด เลือกเช้า-กลางคืน และหมุนคืน — กฎล้วน ไม่มี AI
+- ตาราง Excel: ดาวน์โหลดเทมเพลตได้จากหน้า ตารางของฉัน
 
 ## โครงสร้าง
 
