@@ -1,7 +1,7 @@
 // On-device skin metrics: colour maths, blob counting and shine on synthetic images.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { analyzePixels, convexHull, countSpots, deltas, rgbToLab, shrink } from "../lib/skinMetrics.js";
+import { analyzePixels, convexHull, countSpots, deltas, mergeBlobs, poseFromMatrix, qualityWarnings, rgbToLab, sharpness, shrink, whiteBalanceGains } from "../lib/skinMetrics.js";
 
 const near = (a, b, eps = 0.5) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
 
@@ -99,4 +99,49 @@ test("sensitivity changes how much is caught on noisy skin", () => {
   const hi = analyzePixels(img, POLYS, 200, { sensitivity: "high" }).spots.total;
   assert.ok(lo <= hi, `low=${lo} high=${hi}`);
   assert.ok(lo <= 2, `noise alone should not look like acne at low sensitivity (got ${lo})`);
+});
+
+test("white balance from eye whites neutralises a colour cast", () => {
+  // warm (orange) cast on a white-ish sclera
+  const data = new Uint8ClampedArray(100 * 4);
+  for (let i = 0; i < 100; i++) { data[i * 4] = 230; data[i * 4 + 1] = 205; data[i * 4 + 2] = 170; data[i * 4 + 3] = 255; }
+  const g = whiteBalanceGains(data, Array.from({ length: 100 }, (_, i) => i));
+  const out = [230 * g[0], 205 * g[1], 170 * g[2]];
+  assert.ok(Math.max(...out) - Math.min(...out) < 3, JSON.stringify(out));
+  assert.equal(whiteBalanceGains(data, [1, 2, 3]), null); // too few pixels → don't guess
+});
+
+test("same skin under a warm cast reads the same redness after white balance", () => {
+  const cast = [1.08, 1.0, 0.86];
+  const neutral = analyzePixels(image(200, 200, () => SKIN), POLYS, 200);
+  const warmImg = image(200, 200, () => SKIN.map((v, c) => Math.min(255, Math.round(v * cast[c]))));
+  const raw = analyzePixels(warmImg, POLYS, 200);
+  const fixed = analyzePixels(warmImg, POLYS, 200, { gains: cast.map((c) => 1 / c) });
+  assert.ok(Math.abs(raw.redness.mean - neutral.redness.mean) > 1.5, "cast should shift raw a*");
+  assert.ok(Math.abs(fixed.redness.mean - neutral.redness.mean) < 0.6, `fixed=${fixed.redness.mean} neutral=${neutral.redness.mean}`);
+});
+
+test("small papules are caught by the fine scale", () => {
+  const dots = [[30, 90], [45, 110], [65, 95], [35, 130]];
+  const img = image(200, 200, (x, y) => (dots.some(([dx, dy]) => (x - dx) ** 2 + (y - dy) ** 2 <= 4) ? [214, 150, 132] : SKIN));
+  const m = analyzePixels(img, POLYS, 200, { sensitivity: "high" });
+  assert.equal(m.spots.leftCheek, 4, JSON.stringify(m.marks.leftCheek));
+});
+
+test("merging scales does not double count", () => {
+  const a = [{ x: 10, y: 10, r: 3 }], b = [{ x: 11, y: 10, r: 2 }, { x: 40, y: 40, r: 2 }];
+  assert.equal(mergeBlobs(a, b).length, 2);
+});
+
+test("sharpness: blurred < crisp", () => {
+  const crisp = image(60, 60, (x, y) => ((x * 7 + y * 3) % 5 < 2 ? [255, 255, 255] : [0, 0, 0]));
+  const flat = image(60, 60, () => [128, 128, 128]);
+  const box = { x0: 2, y0: 2, x1: 57, y1: 57 };
+  assert.ok(sharpness(crisp.data, 60, 60, box) > sharpness(flat.data, 60, 60, box) + 100);
+});
+
+test("pose from an identity matrix is frontal; quality flags bad conditions", () => {
+  assert.deepEqual(poseFromMatrix([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]), { yaw: -0, pitch: 0, roll: 0 });
+  assert.equal(qualityWarnings({ yaw: 3, pitch: 2, faceWidth: 500, brightness: 60, sharp: 50, wb: true }).length, 0);
+  assert.equal(qualityWarnings({ yaw: 25, faceWidth: 200, brightness: 30, sharp: 3, wb: false }).length, 5);
 });

@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useData } from "@/lib/data";
 import * as core from "@/lib/core.js";
 import { ANGLE_LABEL, allPhotos, fileToImage, requestPersist, resizeToJpeg, savePhoto, type Angle, type Photo } from "@/lib/photos";
-import { analyzePhoto, preloadAnalyzer } from "@/lib/skinAnalysis";
+import { analyzePhoto, captureSharpest, frameHint, preloadAnalyzer, type FrameHint } from "@/lib/skinAnalysis";
 import type { SkinMetrics } from "@/lib/skinMetrics.js";
 import SkinLogForm from "@/components/SkinLogForm";
 import AnalysisCard from "@/components/AnalysisCard";
@@ -42,8 +42,32 @@ function Capture() {
 
   // warm the face model up while the user lines up the shot
   useEffect(() => {
-    if (settings.autoAnalyze) preloadAnalyzer();
+    preloadAnalyzer();
   }, [settings.autoAnalyze]);
+
+  // live framing guidance (~4×/s) while the camera is up
+  const [hint, setHint] = useState<FrameHint | null>(null);
+  useEffect(() => {
+    if (phase !== "shoot" || camError) return;
+    let alive = true, busy = false;
+    const t = setInterval(async () => {
+      const v = videoRef.current;
+      if (!alive || busy || !v) return;
+      busy = true;
+      try {
+        const h = await frameHint(v);
+        if (alive) setHint(h);
+      } catch {
+        if (alive) setHint(null); // model unavailable → just no hints
+      } finally {
+        busy = false;
+      }
+    }, 250);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [phase, camError]);
 
   // after the last shot: analyse the front photo on-device, store numbers in today's skin log
   useEffect(() => {
@@ -133,7 +157,7 @@ function Capture() {
       clearInterval(t);
       setCount(null);
       const v = videoRef.current!;
-      const r = await resizeToJpeg(v, v.videoWidth, v.videoHeight, true);
+      const r = await captureSharpest(v); // sharpest of a short burst, mirrored like the preview
       await store(r.blob, r.width, r.height);
     }, 1000);
   };
@@ -197,10 +221,20 @@ function Capture() {
               <img src={ghost[angle]} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover" style={{ opacity }} />
             )}
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="h-[62%] w-[62%] max-w-xs rounded-[50%] border-4 border-dashed border-white/70" />
+              <div className={`h-[62%] w-[62%] max-w-xs rounded-[50%] border-4 border-dashed transition-colors duration-300 ${hint?.ok ? "border-emerald-400" : "border-white/70"}`} />
             </div>
             {count !== null && <div className="absolute inset-0 grid place-items-center text-8xl font-bold drop-shadow-lg">{count}</div>}
-            <p className="absolute inset-x-0 top-2 text-center text-sm text-white/80 drop-shadow">ถ่ายที่เดิม แสงเดิม ไม่แต่งหน้า หลังล้างหน้า</p>
+            <div className="absolute inset-x-0 top-3 flex flex-col items-center gap-1.5">
+              {hint && (
+                <span
+                  key={hint.hint}
+                  className={`bounce-in rounded-full px-3.5 py-1.5 text-sm font-semibold shadow-lg backdrop-blur ${hint.ok ? "bg-emerald-500/90 text-white" : "bg-black/55 text-white"}`}
+                >
+                  {hint.hint}
+                </span>
+              )}
+              <span className="text-xs text-white/75 drop-shadow">ถ่ายที่เดิม แสงเดิม ไม่แต่งหน้า หลังล้างหน้า</span>
+            </div>
           </>
         )}
       </div>
@@ -217,7 +251,7 @@ function Capture() {
               เลือกไฟล์
               <input type="file" accept="image/*" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
             </label>
-            <button aria-label="ถ่าย" disabled={count !== null} className="grid h-20 w-20 place-items-center rounded-full border-4 border-white bg-brand-500 active:scale-95" onClick={shoot} />
+            <button aria-label="ถ่าย" disabled={count !== null} className={`grid h-20 w-20 place-items-center rounded-full border-4 bg-brand-500 transition active:scale-95 ${hint?.ok ? "border-emerald-400 shadow-[0_0_0_6px_rgb(52_211_153/0.35)]" : "border-white"}`} onClick={shoot} />
             <span className="flex items-center gap-1 text-sm text-muted"><Timer className="h-4 w-4" /> 3 วิ</span>
           </div>
         </div>

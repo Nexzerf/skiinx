@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ArrowDownRight, ArrowUpRight, CircleDot, Droplets, Flame, LoaderCircle, Minus, ScanFace, SunDim, TriangleAlert, type LucideIcon } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BadgeCheck, CircleDot, Droplets, Flame, LoaderCircle, Minus, ScanFace, SunDim, TriangleAlert, type LucideIcon } from "lucide-react";
 import { REGION_LABEL, SKIN_REGIONS, deltas, type SkinMetrics } from "@/lib/skinMetrics.js";
 import { IconTile } from "./ui";
 
@@ -109,6 +109,21 @@ export default function AnalysisCard({
             </div>
           )}
 
+          {metrics.quality && (
+            metrics.quality.warnings.length ? (
+              <ul className="space-y-1 rounded-2xl bg-amber-50 p-3 text-xs text-amber-800">
+                {metrics.quality.warnings.map((w) => (
+                  <li key={w} className="flex items-start gap-1.5">
+                    <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {w}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="flex items-center gap-1.5 text-xs text-emerald-700">
+                <BadgeCheck className="h-4 w-4" /> รูปผ่านเกณฑ์ (หน้าตรง ชัด แสงพอ{metrics.quality.wb ? " ปรับสมดุลแสงจากตาขาวแล้ว" : ""})
+              </p>
+            )
+          )}
           {metrics.spots.total > 0 && Object.keys(urls).length > 0 && (
             <p className="text-[11px] text-muted">วงสีชมพูในภาพ = จุดที่นับ</p>
           )}
