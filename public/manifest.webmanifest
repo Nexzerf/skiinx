@@ -1,0 +1,21 @@
+{
+  "name": "SkinDaily — สกินแคร์ทุกวัน",
+  "short_name": "SkinDaily",
+  "description": "วันนี้ต้องทาอะไร ทาตามลำดับไหน",
+  "lang": "th",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fff7f9",
+  "theme_color": "#fda4af",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "ทาตอนเช้า", "short_name": "เช้า", "url": "/focus/am", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "ทาก่อนนอน", "short_name": "ก่อนนอน", "url": "/focus/pm", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

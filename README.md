@@ -1,0 +1,81 @@
+# SkinDaily
+
+เว็บแอพ PWA สกินแคร์ส่วนตัว — อัพโหลดตาราง 30 วันจาก Excel แล้วแอพบอกว่าวันนี้ต้องทาอะไร ตามลำดับไหน มีโหมดทาทีละขั้น, streak + บัตรผ่าน, แจ้งเตือนบนมือถือ + Discord ซ้ำจนกว่าจะติ๊ก, ปฏิทิน .ics, QR/NFC ที่กระจก, รูปติดตามผิว และวิเคราะห์แนวโน้มผิวบนเครื่อง
+
+ออกแบบตาม [DESIGN.md](DESIGN.md) · ไม่เสียเงิน · ตารางและการเตือนใช้กฎ if/else ใน [lib/core.js](lib/core.js)
+
+> หน้าจอในแอพไม่มีขั้นตอนตั้งค่าระบบ — ทุกอย่างอยู่ในไฟล์นี้
+
+## ฟีเจอร์หลัก
+
+| | รายละเอียด |
+|---|---|
+| แจ้งเตือนบนเครื่อง | Web Push (Android Chrome, iPhone iOS 16.4+ ที่เพิ่มลงหน้าจอโฮม) เตือนซ้ำทุก 15 นาที แรงขึ้นเรื่อย ๆ — Android มีปุ่ม "ทาแล้ว / เลื่อน 15 นาที" ในแจ้งเตือน |
+| Discord | DM พร้อมปุ่ม + `/today` `/tomorrow` `/streak` (หรือ webhook) |
+| ปฏิทิน .ics | ตัวสำรองที่ทำงานได้แม้เซิร์ฟเวอร์ล่ม |
+| วิเคราะห์ผิวบนเครื่อง | MediaPipe Face Landmarker (WASM) หาใบหน้า → ตัดหน้าผาก/แก้มซ้าย/แก้มขวา/คาง ตำแหน่งเดิมทุกครั้ง → ความแดง (ค่าเฉลี่ย Lab a\*), จุดแดง (blob ที่แดงกว่าผิวรอบ ๆ), ความมัน (% จุดสะท้อนแสงใน T-zone) → เก็บเฉพาะตัวเลขใน `skin_logs.ai` และวาดกราฟคู่กับคะแนนที่ให้เอง รูปไม่ออกจากเครื่อง |
+
+ตัวเลขจากรูปใช้ดู **แนวโน้ม** เท่านั้น (ถ่ายที่เดิม แสงเดิม) ไม่ใช่การวินิจฉัย
+
+## รันในเครื่อง
+
+```bash
+npm install          # postinstall คัดลอก MediaPipe WASM + โหลดโมเดลไป public/mediapipe
+npm run dev          # http://localhost:3000
+npm test             # core + skin metrics (ทดสอบกับไฟล์ Excel จริงใน tests/fixtures)
+```
+
+ถ้าไม่ตั้ง env ของ Supabase แอพทำงานแบบเครื่องเดียว (localStorage) — การแจ้งเตือนต้องใช้โหมดคลาวด์
+
+## Deploy (ฟรีทั้งหมด)
+
+1. **Supabase** (Free, Singapore)
+   ```bash
+   npx supabase login
+   npx supabase link --project-ref <ref>
+   npx supabase db push
+   ```
+2. **Vault + cron** — SQL Editor:
+   ```sql
+   select vault.create_secret('https://<ref>.supabase.co', 'project_url');
+   select vault.create_secret('<สุ่มสตริงยาว ๆ>', 'cron_secret');
+   ```
+   แล้วรัน [supabase/cron.sql](supabase/cron.sql)
+3. **คีย์แจ้งเตือนมือถือ** — `npm run gen-vapid` (ได้ public + private key)
+4. **Discord** (ข้ามได้ถ้าใช้แค่แจ้งเตือนมือถือ) — https://discord.com/developers → New Application
+   - Bot → Reset Token · General Information → Application ID, Public Key
+   - สร้างเซิร์ฟเวอร์ส่วนตัว → OAuth2 → URL Generator → scope `bot` → เชิญบอท
+   - Discord → Settings → Advanced → Developer Mode → คลิกขวาชื่อตัวเอง → Copy User ID
+5. **Secrets**
+   ```bash
+   npx supabase secrets set CRON_SECRET=<ค่าเดียวกับ cron_secret> APP_URL=https://<app>.vercel.app \
+     VAPID_PUBLIC_KEY=… VAPID_PRIVATE_KEY=… \
+     DISCORD_MODE=bot DISCORD_BOT_TOKEN=… DISCORD_PUBLIC_KEY=… DISCORD_USER_ID=…
+   ```
+   (webhook: `DISCORD_MODE=webhook DISCORD_WEBHOOK_URL=…` · หลายบัญชีใน Auth: ตั้ง `APP_USER_ID=<uuid>`)
+6. **Functions**
+   ```bash
+   npm run sync-core
+   npx supabase functions deploy remind discord ics push-action test-notify --no-verify-jwt
+   ```
+7. **Discord Interactions Endpoint URL** = `https://<ref>.supabase.co/functions/v1/discord` → Save
+8. **Slash commands** (ครั้งเดียว): `DISCORD_APP_ID=… DISCORD_BOT_TOKEN=… npm run register-commands`
+9. **Vercel** — env `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY` → Deploy
+10. **Supabase Auth** → Site URL = โดเมน Vercel → login ครั้งแรก → ปิด "Allow new users to sign up"
+11. **มือถือ** เปิดเว็บ → เพิ่มลงหน้าจอโฮม → อัพโหลดตาราง → ตั้งค่า → เปิด "แจ้งเตือนบนเครื่องนี้" → ส่งแจ้งเตือนทดสอบ
+
+> Supabase Free พักโปรเจกต์ที่ไม่มีการใช้งาน 1 สัปดาห์ — ถ้าโดนพัก แจ้งเตือนจะหยุด แต่ .ics ยังเตือนอยู่
+
+## โครงสร้าง
+
+```
+app/                        วันนี้ · focus/[am|pm|now] · calendar · photos (+capture) · schedule · settings · login
+components/                 ui, controls (select/time/date/switch/stepper), AnalysisCard, TrendCharts, …
+lib/core.js                 ตาราง + กฎ + การตัดสินใจเตือน (ใช้ร่วมกับ edge functions)
+lib/skinMetrics.js          ค่าความแดง/จุดแดง/ความมันจากพิกเซล (pure, มี unit test)
+lib/skinAnalysis.ts         MediaPipe Face Landmarker → regions → skinMetrics + ภาพตัดแต่ละบริเวณ
+lib/push.ts · public/sw.js  สมัคร Web Push · แสดงแจ้งเตือน + ปุ่ม
+supabase/functions          remind · discord · push-action · test-notify · ics
+supabase/migrations         ตาราง + RLS (รวม push_subscriptions, skin_logs.ai)
+scripts/                    prepare-mediapipe · gen-vapid · register-commands · sync-core · make-icons
+```

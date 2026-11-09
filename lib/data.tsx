@@ -1,0 +1,174 @@
+"use client";
+// App-wide data: one snapshot (schedules / check-ins / settings / skin logs) + everything derived
+// from it with lib/core.js. Pages use `useData()`.
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import * as core from "./core.js";
+import * as store from "./store";
+import { cloudEnabled, sb } from "./supabase";
+import { clearNotification } from "./push";
+import type { Checkin, ScheduleRow, SkinLog, Slot, Snapshot } from "./types";
+
+type Ctx = {
+  ready: boolean;
+  snap: Snapshot;
+  now: Date;
+  settings: ReturnType<typeof core.withDefaults>;
+  schedules: ScheduleRow[]; // enabled only
+  checks: Set<string>;
+  today: string;
+  info: any; // core.dayInfo(today)
+  streak: ReturnType<typeof core.computeStreak>;
+  firstDate: string | null;
+  checkinOf: (date: string, slot: Slot) => Checkin | undefined;
+  infoFor: (date: string) => any;
+  setCheck: (date: string, slot: Slot, done: boolean, source?: Checkin["source"]) => void;
+  addSchedule: (row: Omit<ScheduleRow, "id" | "created_at">) => Promise<void>;
+  updateSchedule: (id: ScheduleRow["id"], patch: Partial<ScheduleRow>) => Promise<void>;
+  deleteSchedule: (id: ScheduleRow["id"]) => Promise<void>;
+  saveSettings: (patch: Record<string, any>) => Promise<void>;
+  regenerateIcsToken: () => Promise<void>;
+  upsertSkinLog: (log: SkinLog) => Promise<void>;
+  importSnapshot: (s: Snapshot) => Promise<void>;
+  reload: () => Promise<void>;
+  email: string | null;
+};
+
+const C = createContext<Ctx | null>(null);
+const EMPTY: Snapshot = { schedules: [], checkins: [], settings: { data: {} }, skinLogs: [] };
+
+export function DataProvider({ children }: { children: React.ReactNode }) {
+  const [snap, setSnap] = useState<Snapshot>(EMPTY);
+  const [ready, setReady] = useState(false);
+  const [now, setNow] = useState(() => new Date());
+  const [email, setEmail] = useState<string | null>(null);
+  const snapRef = useRef(snap);
+  snapRef.current = snap;
+  const router = useRouter();
+  const path = usePathname();
+
+  const reload = useCallback(async () => {
+    try {
+      setSnap(await store.loadAll());
+    } catch (e) {
+      console.warn(e);
+      setSnap(store.cached());
+    }
+    setReady(true);
+  }, []);
+
+  // auth gate (cloud mode) + first load
+  useEffect(() => {
+    if (!cloudEnabled) {
+      setSnap(store.cached());
+      setReady(true);
+      return;
+    }
+    setSnap(store.cached()); // instant paint from cache, then refresh
+    const auth = sb().auth;
+    auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        if (path !== "/login") router.replace("/login");
+        setReady(true);
+        return;
+      }
+      setEmail(data.session.user.email ?? null);
+      reload();
+    });
+    const { data: sub } = auth.onAuthStateChange((ev, session) => {
+      setEmail(session?.user.email ?? null);
+      if (ev === "SIGNED_IN") reload();
+      if (ev === "SIGNED_OUT") router.replace("/login");
+    });
+    return () => sub.subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // clock + refresh when the app comes back (Discord / notification buttons tick on the server)
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30_000);
+    const onVis = () => {
+      if (document.visibilityState === "visible") {
+        setNow(new Date());
+        if (cloudEnabled) reload();
+      }
+    };
+    const onOnline = () => {
+      store.flushPending().then(() => {
+        if (cloudEnabled) reload();
+      });
+    };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("online", onOnline);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [reload]);
+
+  const settings = useMemo(() => core.withDefaults(snap.settings.data), [snap.settings.data]);
+  const schedules = useMemo(() => snap.schedules.filter((s) => s.enabled), [snap.schedules]);
+  const checks = useMemo(() => core.toCheckSet(snap.checkins), [snap.checkins]);
+  const today = core.logicalDate(now, settings);
+  const firstDate = useMemo(
+    () => (schedules.length ? schedules.map((s) => s.start_date).sort()[0] : null),
+    [schedules],
+  );
+  const infoCache = useMemo(() => new Map<string, any>(), [schedules, settings]);
+  const infoFor = useCallback(
+    (date: string) => {
+      if (!infoCache.has(date)) infoCache.set(date, core.dayInfo(date, schedules, settings));
+      return infoCache.get(date);
+    },
+    [infoCache, schedules, settings],
+  );
+  const info = infoFor(today);
+  const streak = useMemo(
+    () => core.computeStreak(today, checks, firstDate && firstDate <= today ? firstDate : null, settings),
+    [today, checks, firstDate, settings],
+  );
+
+  // keep the ref in step immediately so back-to-back writes never start from a stale snapshot
+  const commit = (next: Snapshot) => {
+    snapRef.current = next;
+    setSnap(next);
+  };
+  const wrap = (fn: (s: Snapshot, ...a: any[]) => Promise<Snapshot>) =>
+    async (...a: any[]) => commit(await fn(snapRef.current, ...a));
+
+  const value: Ctx = {
+    ready,
+    snap,
+    now,
+    settings,
+    schedules,
+    checks,
+    today,
+    info,
+    streak,
+    firstDate,
+    infoFor,
+    checkinOf: (date, slot) => snap.checkins.find((c) => c.date === date && c.slot === slot),
+    setCheck: (date, slot, done, source = "app") => {
+      commit(store.setCheckin(snapRef.current, date, slot, done, source));
+      if (done) clearNotification(date, slot);
+    },
+    addSchedule: wrap(store.addSchedule) as any,
+    updateSchedule: wrap(store.updateSchedule) as any,
+    deleteSchedule: wrap(store.deleteSchedule) as any,
+    saveSettings: async (patch) => commit(await store.saveSettings(snapRef.current, { ...snapRef.current.settings.data, ...patch })),
+    regenerateIcsToken: wrap(store.regenerateIcsToken) as any,
+    upsertSkinLog: wrap(store.upsertSkinLog) as any,
+    importSnapshot: wrap(store.importSnapshot) as any,
+    reload,
+    email,
+  };
+  return <C.Provider value={value}>{children}</C.Provider>;
+}
+
+export function useData() {
+  const v = useContext(C);
+  if (!v) throw new Error("useData outside DataProvider");
+  return v;
+}

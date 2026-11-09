@@ -1,0 +1,23 @@
+export type RegionName = "forehead" | "leftCheek" | "rightCheek" | "chin" | "nose";
+export type Poly = [number, number][];
+export type SkinMetrics = {
+  v: 1;
+  redness: { forehead: number | null; leftCheek: number | null; rightCheek: number | null; chin: number | null; mean: number | null };
+  spots: { forehead: number; leftCheek: number; rightCheek: number; chin: number; total: number };
+  oil: number | null;
+  brightness: number;
+  coverage: Record<string, number>;
+  at?: string;
+};
+export function rgbToLab(r: number, g: number, b: number): [number, number, number];
+export const REGION_POINTS: Record<RegionName, number[]>;
+export const REGION_LABEL: Record<RegionName, string>;
+export const SKIN_REGIONS: ("forehead" | "leftCheek" | "rightCheek" | "chin")[];
+export function convexHull(points: Poly): Poly;
+export function shrink(poly: Poly, k: number): Poly;
+export function regionPolygons(landmarks: Poly, k?: number): Record<RegionName, Poly>;
+export function faceWidthOf(landmarks: Poly): number;
+export function maskOf(poly: Poly, width: number, height: number): number[];
+export function countSpots(A: Float32Array, L: Float32Array, idx: number[], width: number, r: number, opts?: { delta?: number; minArea?: number; maxArea?: number }): number;
+export function analyzePixels(image: { data: Uint8ClampedArray; width: number; height: number }, polys: Record<string, Poly>, faceWidth: number): SkinMetrics;
+export function deltas(now: SkinMetrics | null | undefined, prev: SkinMetrics | null | undefined): { redness: number | null; spots: number | null; oil: number | null; brightness: number | null } | null;
