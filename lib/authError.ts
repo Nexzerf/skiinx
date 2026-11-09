@@ -30,6 +30,8 @@ export function takeAuthError(): string | null {
 /** Map Supabase auth errors to something actionable. */
 export function explainAuthError(msg: string): string {
   const m = msg.toLowerCase();
+  if (m.includes("not allowed to use skiinx"))
+    return "บัญชี Discord นี้ไม่มีสิทธิ์ใช้ Skiinx — แอพนี้ผูกกับบัญชี Discord ของเจ้าของไว้แล้ว";
   if (m.includes("signup") && (m.includes("not allowed") || m.includes("disabled")))
     return "บัญชี Discord นี้ยังไม่ได้เชื่อมกับ Skiinx — เข้าสู่ระบบด้วยอีเมลก่อน แล้วไปที่ ตั้งค่า → เชื่อมบัญชี Discord (ครั้งเดียว) จากนั้นจะเข้าด้วย Discord ได้เลย";
   if (m.includes("manual linking") || m.includes("manual_linking"))

@@ -41,6 +41,9 @@ npm test             # core + skin metrics (ทดสอบกับไฟล์
    → คัดลอก Client ID + Client Secret → Supabase → Authentication → Sign In / Providers → **Discord** → เปิด แล้ววางสองค่า
    → Authentication → URL Configuration → Redirect URLs เพิ่ม `https://<app>.vercel.app/**`
    (login ด้วย Discord แล้ว ระบบรู้ Discord ID เอง ไม่ต้องตั้ง `DISCORD_USER_ID`)
+   **โปรเจกต์ที่ปิดการสมัครไว้ (ใช้ร่วมกับแอพอื่น):** Authentication → Hooks → *Before User Created* → Postgres → `public.skiinx_before_user_created`
+   แล้วค่อยเปิด "Allow new users to sign up" — hook ยอมเฉพาะการสมัครด้วย Discord และบัญชี Discord แรกที่สมัครจะเป็นเจ้าของ (เก็บใน `skiinx_allowed_discord`) การสมัครแบบอื่นยังถูกปฏิเสธเหมือนเดิม
+   หรือไม่ต้องเปิดการสมัคร: login ด้วยอีเมล → ตั้งค่า → เชื่อมบัญชี Discord (ต้องเปิด "Allow manual linking")
 7. **บอท Discord** (ข้ามได้) — Edge Functions → Secrets ใส่ `DISCORD_MODE=bot`, `DISCORD_BOT_TOKEN`, `DISCORD_PUBLIC_KEY`
    → Interactions Endpoint URL = `https://<ref>.supabase.co/functions/v1/skiinx/discord`
    → `DISCORD_APP_ID=… DISCORD_BOT_TOKEN=… npm run register-commands`
