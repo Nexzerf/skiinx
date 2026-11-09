@@ -161,7 +161,7 @@ export default function Login() {
                   autoFocus
                   inputMode="email"
                   autoComplete="email"
-                  className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted/70"
+                  className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted/70"
                   placeholder="อีเมลของคุณ"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

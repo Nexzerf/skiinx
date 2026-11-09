@@ -238,7 +238,7 @@ export function ProductSheet({ open, onClose, edit, usedIn, onSaved }: { open: b
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="ชื่อสินค้า เช่น CeraVe, Anessa"
-              className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted/70"
+              className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted/70"
               enterKeyHint="search"
             />
             {searching ? (
