@@ -12,7 +12,7 @@ export default function Login() {
     <div className="space-y-6 py-16 text-center">
       <div className="flex justify-center"><IconTile icon={Sparkles} size={80} className="rounded-[28px] bg-linear-to-br from-brand-100 to-brand-300 text-white" /></div>
       <div>
-        <h1 className="text-3xl font-bold text-brand-500">SkinDaily</h1>
+        <h1 className="text-3xl font-bold text-brand-500">Skiinx</h1>
         <p className="text-sm text-muted">ดูแลผิวทุกวัน ไม่ต้องจำเอง</p>
       </div>
       {state === "sent" ? (

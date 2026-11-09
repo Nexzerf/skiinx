@@ -1,4 +1,4 @@
-project_id = "skindaily"
+project_id = "skiinx"
 
 # Every function checks auth itself (cron secret / Discord signature / ics token / push token / user JWT).
 [functions.remind]

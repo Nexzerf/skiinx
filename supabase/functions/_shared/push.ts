@@ -9,7 +9,7 @@ export function pushReady() {
   const pub = env("VAPID_PUBLIC_KEY"), priv = env("VAPID_PRIVATE_KEY");
   ready = !!(pub && priv);
   // subject must be a mailto: or https: URL — the app's own URL keeps personal email out of it
-  if (ready) webpush.setVapidDetails(env("VAPID_SUBJECT") || env("APP_URL") || "https://skindaily.app", pub, priv);
+  if (ready) webpush.setVapidDetails(env("VAPID_SUBJECT") || env("APP_URL") || "https://skiinx.vercel.app", pub, priv);
   return ready;
 }
 

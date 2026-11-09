@@ -234,7 +234,7 @@ export default function SettingsPage() {
           <button
             className="btn-ghost"
             onClick={async () => {
-              download(await exportZip(snap), `skindaily-backup-${today}.zip`);
+              download(await exportZip(snap), `skiinx-backup-${today}.zip`);
               await set({ lastExportAt: today });
             }}
           >

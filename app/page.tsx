@@ -34,7 +34,7 @@ export default function Today() {
             <Sparkles className="twinkle h-5 w-5 text-brand-300" />
           </h1>
         ) : (
-          <h1 className="text-[34px] leading-tight font-bold text-brand-500">SkinDaily</h1>
+          <h1 className="text-[34px] leading-tight font-bold text-brand-500">Skiinx</h1>
         )}
         <p className="mt-0.5 flex items-center gap-2 text-sm text-muted">
           {thDate(today)}

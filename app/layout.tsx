@@ -8,10 +8,10 @@ import SwRegister from "@/components/SwRegister";
 const thai = Noto_Sans_Thai({ subsets: ["thai", "latin"], weight: ["400", "500", "600", "700"], variable: "--font-thai", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "SkinDaily",
+  title: "Skiinx",
   description: "ตารางสกินแคร์ส่วนตัว — วันนี้ต้องทาอะไร ทาตามลำดับไหน",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "SkinDaily", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Skiinx", statusBarStyle: "default" },
   icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
 };
 export const viewport: Viewport = { themeColor: "#fdf7f9", width: "device-width", initialScale: 1, viewportFit: "cover" };

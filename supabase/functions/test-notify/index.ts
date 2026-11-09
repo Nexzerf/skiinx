@@ -21,13 +21,13 @@ Deno.serve(async (req) => {
     const info = core.dayInfo(ctx.today, ctx.schedules, ctx.settings);
     if (discordReady(ctx.settings)) {
       out.discord = await sendDiscord(db, row, {
-        content: "🧪 ข้อความทดสอบจาก SkinDaily",
+        content: "🧪 ข้อความทดสอบจาก Skiinx",
         embeds: info ? [routineEmbed(info, slot, ctx.settings, "ทดสอบ · ปุ่มด้านล่างใช้ได้จริง")] : [],
         components: info ? reminderButtons(ctx.today, slot) : [],
       });
     }
     out.push = await pushAll(db, row.user_id, {
-      title: "SkinDaily — ทดสอบการแจ้งเตือน",
+      title: "Skiinx — ทดสอบการแจ้งเตือน",
       body: info ? `วัน ${info.n}/${info.len} · ${info[slot].map((s: any) => s.name).join(" → ")}` : "การแจ้งเตือนพร้อมใช้งาน",
       tag: "test",
       url: `/focus/${slot}`,

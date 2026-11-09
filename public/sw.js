@@ -1,7 +1,7 @@
-// SkinDaily service worker: keeps the app shell available offline.
+// Skiinx service worker: keeps the app shell available offline.
 // Pages → network first (fresh deploys), falling back to cache. Static assets → cache first.
 // Supabase / anything cross-origin is never cached.
-const CACHE = "skindaily-v2";
+const CACHE = "skiinx-v3";
 const SHELL = ["/", "/calendar", "/photos", "/schedule", "/settings", "/focus/am", "/focus/pm", "/focus/now", "/manifest.webmanifest", "/icons/icon-192.png"];
 
 self.addEventListener("install", (e) => {
@@ -54,7 +54,7 @@ self.addEventListener("push", (e) => {
   try {
     d = e.data ? e.data.json() : {};
   } catch {
-    d = { title: "SkinDaily", body: e.data ? e.data.text() : "" };
+    d = { title: "Skiinx", body: e.data ? e.data.text() : "" };
   }
   const actions = d.actions
     ? [
@@ -63,9 +63,9 @@ self.addEventListener("push", (e) => {
       ]
     : [];
   e.waitUntil(
-    self.registration.showNotification(d.title || "SkinDaily", {
+    self.registration.showNotification(d.title || "Skiinx", {
       body: d.body || "",
-      tag: d.tag || "skindaily",
+      tag: d.tag || "skiinx",
       renotify: true,
       requireInteraction: !!d.actions,
       icon: "/icons/icon-192.png",

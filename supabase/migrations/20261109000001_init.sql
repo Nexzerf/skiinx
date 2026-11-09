@@ -1,4 +1,4 @@
--- 001_init: tables + RLS for SkinDaily
+-- 001_init: tables + RLS for Skiinx
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 

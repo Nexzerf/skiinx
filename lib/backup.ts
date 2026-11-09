@@ -17,7 +17,7 @@ export async function exportZip(snap: Snapshot): Promise<Blob> {
 export async function readBackup(file: Blob): Promise<{ data: Snapshot; photos: Photo[] }> {
   const files = await unzip(await file.arrayBuffer());
   const td = new TextDecoder();
-  if (!files["data.json"]) throw new Error("ไม่ใช่ไฟล์สำรองของ SkinDaily (ไม่พบ data.json)");
+  if (!files["data.json"]) throw new Error("ไม่ใช่ไฟล์สำรองของ Skiinx (ไม่พบ data.json)");
   const raw = JSON.parse(td.decode(files["data.json"]));
   const data: Snapshot = {
     schedules: raw.schedules || [],
