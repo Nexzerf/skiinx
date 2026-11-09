@@ -374,3 +374,13 @@ input[type="range"] {
 @media (prefers-reduced-motion: reduce) {
   .blink, .sway, .sway-slow, .swing, .heart-rise { animation: none; }
 }
+
+/* liveness check: arrows nudge the way the head should move */
+@keyframes nudge-x { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(var(--d)); } }
+@keyframes nudge-y { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(var(--d)); } }
+@keyframes pulse-soft { 0%, 100% { transform: scaleY(1); } 45%, 55% { transform: scaleY(0.15); } }
+.nudge-left { --d: -5px; animation: nudge-x 0.9s ease-in-out infinite; }
+.nudge-right { --d: 5px; animation: nudge-x 0.9s ease-in-out infinite; }
+.nudge-up { --d: -5px; animation: nudge-y 0.9s ease-in-out infinite; }
+.nudge-down { --d: 5px; animation: nudge-y 0.9s ease-in-out infinite; }
+.pulse-soft { animation: pulse-soft 1.6s ease-in-out infinite; }

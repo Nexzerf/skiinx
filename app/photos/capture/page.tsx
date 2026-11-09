@@ -1,12 +1,13 @@
 "use client";
-import { Camera, CircleCheck, ImagePlus, Timer, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Camera, CircleCheck, Eye, ImagePlus, Lightbulb, ScanFace, ShieldCheck, Sun, Timer, X, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useData } from "@/lib/data";
 import * as core from "@/lib/core.js";
 import { ANGLE_LABEL, allPhotos, fileToImage, requestPersist, resizeToJpeg, savePhoto, type Angle, type Photo } from "@/lib/photos";
-import { analyzePhoto, captureSharpest, frameHint, preloadAnalyzer, type FrameHint } from "@/lib/skinAnalysis";
+import { analyzePhoto, captureSharpest, hintFor, preloadAnalyzer, readFrame, type FrameHint } from "@/lib/skinAnalysis";
+import { advance, initial, makePlan, prompt, type LiveState, type Move } from "@/lib/liveness.js";
 import type { SkinMetrics } from "@/lib/skinMetrics.js";
 import SkinLogForm from "@/components/SkinLogForm";
 import AnalysisCard from "@/components/AnalysisCard";
@@ -45,29 +46,47 @@ function Capture() {
     preloadAnalyzer();
   }, [settings.autoAnalyze]);
 
-  // live framing guidance (~4×/s) while the camera is up
+  // live framing guidance + liveness check (~6×/s) while the camera is up
   const [hint, setHint] = useState<FrameHint | null>(null);
+  const [live, setLive] = useState<LiveState>(() => initial(makePlan(3)));
+  const [noModel, setNoModel] = useState(false); // face model can't run here → skip the check
+  const [screenLight, setScreenLight] = useState(false);
+  const angleRef = useRef(angle);
+  angleRef.current = angle;
   useEffect(() => {
     if (phase !== "shoot" || camError) return;
-    let alive = true, busy = false;
+    let alive = true, busy = false, fails = 0;
     const t = setInterval(async () => {
       const v = videoRef.current;
       if (!alive || busy || !v) return;
       busy = true;
       try {
-        const h = await frameHint(v);
-        if (alive) setHint(h);
+        const r = await readFrame(v);
+        if (!alive) return;
+        fails = 0;
+        setHint(hintFor(r, angleRef.current));
+        if (r) setLive((st) => advance(st, r));
       } catch {
-        if (alive) setHint(null); // model unavailable → just no hints
+        if (alive && ++fails >= 8) setNoModel(true); // model unavailable → no hints, no check
+        if (alive) setHint(null);
       } finally {
         busy = false;
       }
-    }, 250);
+    }, 160);
     return () => {
       alive = false;
       clearInterval(t);
     };
   }, [phase, camError]);
+  const verified = live.done || noModel;
+  // turn the screen light on by itself the first time it's too dark
+  const autoLit = useRef(false);
+  useEffect(() => {
+    if (hint?.dark && !autoLit.current) {
+      autoLit.current = true;
+      setScreenLight(true);
+    }
+  }, [hint?.dark]);
 
   // after the last shot: analyse the front photo on-device, store numbers in today's skin log
   useEffect(() => {
@@ -149,6 +168,7 @@ function Capture() {
   };
 
   const shoot = () => {
+    if (!verified) return;
     let n = 3;
     setCount(n);
     const t = setInterval(async () => {
@@ -215,26 +235,45 @@ function Capture() {
           </div>
         ) : (
           <>
-            <video ref={videoRef} playsInline muted className="h-full w-full -scale-x-100 object-cover" />
-            {ghost[angle] && (
+            {/* screen light: a bright white frame lights the face in a dark room (front cameras have no flash) */}
+            <div className={`absolute inset-0 transition-all duration-300 ${screenLight ? "bg-white px-[7%] py-[12%]" : ""}`}>
+              <video ref={videoRef} playsInline muted className={`h-full w-full -scale-x-100 object-cover ${screenLight ? "rounded-[32px]" : ""}`} />
+            </div>
+            {verified && ghost[angle] && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={ghost[angle]} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover" style={{ opacity }} />
             )}
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className={`h-[62%] w-[62%] max-w-xs rounded-[50%] border-4 border-dashed transition-colors duration-300 ${hint?.ok ? "border-emerald-400" : "border-white/70"}`} />
+              <div
+                className={`h-[62%] w-[62%] max-w-xs rounded-[50%] border-4 transition-colors duration-300 ${
+                  !verified ? "border-solid border-sky-400/90" : hint?.ok ? "border-dashed border-emerald-400" : "border-dashed border-white/70"
+                }`}
+              />
             </div>
             {count !== null && <div className="absolute inset-0 grid place-items-center text-8xl font-bold drop-shadow-lg">{count}</div>}
-            <div className="absolute inset-x-0 top-3 flex flex-col items-center gap-1.5">
-              {hint && (
-                <span
-                  key={hint.hint}
-                  className={`bounce-in rounded-full px-3.5 py-1.5 text-sm font-semibold shadow-lg backdrop-blur ${hint.ok ? "bg-emerald-500/90 text-white" : "bg-black/55 text-white"}`}
-                >
-                  {hint.hint}
-                </span>
-              )}
-              <span className="text-xs text-white/75 drop-shadow">ถ่ายที่เดิม แสงเดิม ไม่แต่งหน้า หลังล้างหน้า</span>
-            </div>
+
+            {!verified ? (
+              <LivenessPanel live={live} dark={!!hint?.dark} />
+            ) : (
+              <div className="absolute inset-x-0 top-3 flex flex-col items-center gap-1.5">
+                {hint && !hint.dark && (
+                  <span
+                    key={hint.hint}
+                    className={`bounce-in rounded-full px-3.5 py-1.5 text-sm font-semibold shadow-lg backdrop-blur ${hint.ok ? "bg-emerald-500/90 text-white" : "bg-black/55 text-white"}`}
+                  >
+                    {hint.hint}
+                  </span>
+                )}
+                {live.done && (
+                  <span className="flex items-center gap-1 rounded-full bg-black/45 px-2.5 py-1 text-[11px] text-emerald-300">
+                    <ShieldCheck className="h-3.5 w-3.5" /> ยืนยันใบหน้าจริงแล้ว
+                  </span>
+                )}
+                <span className="text-xs text-white/75 drop-shadow">ถ่ายที่เดิม แสงเดิม ไม่แต่งหน้า หลังล้างหน้า</span>
+              </div>
+            )}
+
+            {hint?.dark && <DarkWarning screenLight={screenLight} onToggle={() => setScreenLight((x) => !x)} />}
           </>
         )}
       </div>
@@ -247,14 +286,72 @@ function Capture() {
             </label>
           )}
           <div className="flex items-center justify-center gap-6">
-            <label className="cursor-pointer text-sm text-gray-300 underline">
-              เลือกไฟล์
-              <input type="file" accept="image/*" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
-            </label>
-            <button aria-label="ถ่าย" disabled={count !== null} className={`grid h-20 w-20 place-items-center rounded-full border-4 bg-brand-500 transition active:scale-95 ${hint?.ok ? "border-emerald-400 shadow-[0_0_0_6px_rgb(52_211_153/0.35)]" : "border-white"}`} onClick={shoot} />
-            <span className="flex items-center gap-1 text-sm text-muted"><Timer className="h-4 w-4" /> 3 วิ</span>
+            <button
+              onClick={() => setScreenLight((x) => !x)}
+              className={`flex w-16 flex-col items-center gap-1 text-xs ${screenLight ? "text-amber-300" : "text-gray-300"}`}
+              aria-pressed={screenLight}
+            >
+              <Lightbulb className="h-5 w-5" /> ไฟหน้าจอ
+            </button>
+            <button
+              aria-label="ถ่าย"
+              disabled={count !== null || !verified}
+              className={`grid h-20 w-20 place-items-center rounded-full border-4 bg-brand-500 transition active:scale-95 disabled:opacity-40 ${hint?.ok && verified ? "border-emerald-400 shadow-[0_0_0_6px_rgb(52_211_153/0.35)]" : "border-white"}`}
+              onClick={shoot}
+            />
+            <span className="flex w-16 flex-col items-center gap-1 text-xs text-gray-300"><Timer className="h-5 w-5" /> 3 วิ</span>
           </div>
+          {noModel && <p className="text-center text-xs text-gray-400">เครื่องนี้ตรวจใบหน้าอัตโนมัติไม่ได้ — ถ่ายได้ตามปกติ</p>}
         </div>
+      )}
+    </div>
+  );
+}
+
+const MOVE_ICON: Record<Move, LucideIcon> = { left: ArrowLeft, right: ArrowRight, up: ArrowUp, down: ArrowDown, blink: Eye };
+const MOVE_ANIM: Record<Move, string> = { left: "nudge-left", right: "nudge-right", up: "nudge-up", down: "nudge-down", blink: "pulse-soft" };
+
+/** Bank-app style "prove you're real" steps: look straight → random head moves → blink. */
+function LivenessPanel({ live, dark }: { live: LiveState; dark: boolean }) {
+  const move = live.step >= 0 ? live.plan[live.step] : null;
+  const Icon = move ? MOVE_ICON[move] : ScanFace;
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-3 flex flex-col items-center gap-2 px-4">
+      <span className="flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1 text-xs font-medium text-sky-200 backdrop-blur">
+        <ShieldCheck className="h-3.5 w-3.5" /> ยืนยันว่าเป็นใบหน้าจริง
+      </span>
+      {!dark && (
+        <div key={live.step} className="bounce-in flex items-center gap-3 rounded-3xl bg-white/95 py-2.5 pr-5 pl-3 text-ink shadow-xl">
+          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-sky-100 text-sky-600">
+            <Icon className={`h-6 w-6 ${move ? MOVE_ANIM[move] : ""}`} strokeWidth={2.4} />
+          </span>
+          <span>
+            <b className="block text-base">{prompt(live)}</b>
+            <span className="text-xs text-muted">{live.failed || (move ? (move === "blink" ? "หลับตาแล้วลืมตา 1 ครั้ง" : "ค้างไว้แป๊บหนึ่ง") : "ให้ใบหน้าอยู่กลางกรอบ")}</span>
+          </span>
+        </div>
+      )}
+      <div className="flex gap-1.5">
+        {live.plan.map((m, i) => (
+          <span key={i} className={`h-1.5 w-6 rounded-full transition-colors ${i < live.step ? "bg-emerald-400" : i === live.step ? "bg-sky-400" : "bg-white/35"}`} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Big warning when the face is too dark to judge (and to analyse skin). */
+function DarkWarning({ screenLight, onToggle }: { screenLight: boolean; onToggle: () => void }) {
+  return (
+    <div className="absolute inset-x-4 bottom-4 rounded-3xl bg-amber-400 p-4 text-amber-950 shadow-2xl">
+      <p className="flex items-center gap-2 text-base font-bold">
+        <Sun className="h-5 w-5" /> แสงไม่พอ
+      </p>
+      <p className="mt-1 text-sm">หันหน้าเข้าหาหน้าต่างหรือโคมไฟ ไม่ให้แสงอยู่ด้านหลัง {screenLight ? "· เปิดไฟหน้าจออยู่" : ""}</p>
+      {!screenLight && (
+        <button className="mt-2.5 flex items-center gap-1.5 rounded-full bg-amber-950 px-4 py-2 text-sm font-semibold text-amber-50" onClick={onToggle}>
+          <Lightbulb className="h-4 w-4" /> เปิดไฟหน้าจอ
+        </button>
       )}
     </div>
   );

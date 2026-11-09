@@ -33,6 +33,7 @@ function load(mode: Mode = "IMAGE"): Promise<FaceLandmarker> {
         runningMode: mode,
         numFaces: 1,
         outputFacialTransformationMatrixes: true,
+        outputFaceBlendshapes: mode === "VIDEO", // blink detection for the liveness check
         minFaceDetectionConfidence: 0.6,
         minFacePresenceConfidence: 0.6,
         minTrackingConfidence: 0.6,
@@ -177,40 +178,76 @@ export async function analyzePhoto(photo: Photo, opts: { sensitivity?: Sensitivi
 
 /* ───────── camera helpers ───────── */
 
-export type FrameHint = { ok: boolean; hint: string };
+export type FrameHint = { ok: boolean; hint: string; dark?: boolean };
 let probe: HTMLCanvasElement | null = null;
 
-/**
- * Live framing check on the camera preview (≈4×/s): face in frame, close enough, facing straight,
- * enough light. Guides every photo toward the same conditions so trends compare like with like.
- */
-export async function frameHint(video: HTMLVideoElement): Promise<FrameHint> {
-  if (!video.videoWidth) return { ok: false, hint: "กำลังเปิดกล้อง…" };
-  const lm = await load("VIDEO");
-  const r = lm.detectForVideo(video, performance.now());
-  const face = r.faceLandmarks?.[0];
-  if (!face) return { ok: false, hint: "ให้ใบหน้าอยู่ในกรอบ" };
-  const xs = face.map((p) => p.x), ys = face.map((p) => p.y);
-  const fw = Math.max(...xs) - Math.min(...xs);
-  if (fw < 0.38) return { ok: false, hint: "ขยับเข้าใกล้กล้องอีกนิด" };
-  if (fw > 0.82) return { ok: false, hint: "ถอยออกนิดหนึ่ง" };
-  const pose = poseFromMatrix(r.facialTransformationMatrixes?.[0]?.data);
-  if (pose && Math.abs(pose.yaw) > 10) return { ok: false, hint: "หันหน้าตรงเข้ากล้อง" };
-  if (pose && Math.abs(pose.pitch) > 12) return { ok: false, hint: "ปรับระดับหน้าให้ตรง" };
-  // exposure on the face box
+/** Mean luma (0-255) of a region of the video, sampled at 48×48. */
+function lumaOf(video: HTMLVideoElement, sx = 0, sy = 0, sw = video.videoWidth, sh = video.videoHeight) {
   probe ??= document.createElement("canvas");
-  probe.width = 64;
-  probe.height = 64;
+  probe.width = 48;
+  probe.height = 48;
   const g = probe.getContext("2d", { willReadFrequently: true })!;
-  const sx = Math.min(...xs) * video.videoWidth, sy = Math.min(...ys) * video.videoHeight;
-  g.drawImage(video, sx, sy, fw * video.videoWidth, (Math.max(...ys) - Math.min(...ys)) * video.videoHeight, 0, 0, 64, 64);
-  const d = g.getImageData(0, 0, 64, 64).data;
+  g.drawImage(video, sx, sy, Math.max(1, sw), Math.max(1, sh), 0, 0, 48, 48);
+  const d = g.getImageData(0, 0, 48, 48).data;
   let y = 0;
   for (let i = 0; i < d.length; i += 4) y += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-  y /= d.length / 4;
-  if (y < 85) return { ok: false, hint: "แสงน้อยไป — หันหน้าเข้าหาแสง" };
-  if (y > 225) return { ok: false, hint: "แสงจ้าไป — ขยับออกจากแสงตรง" };
+  return y / (d.length / 4);
+}
+
+/**
+ * One reading of the camera preview: overall + face brightness, face size/position and head pose.
+ * yaw > 0 = the person turned to THEIR left; pitchZ grows when they look up (from landmark depth,
+ * compare against a baseline); blink = 0..1 (both eyes).
+ */
+export type FrameRead = {
+  luma: number;
+  face: null | { width: number; cx: number; cy: number; luma: number; yaw: number; pitchZ: number; blink: number | null };
+};
+export async function readFrame(video: HTMLVideoElement): Promise<FrameRead | null> {
+  if (!video.videoWidth) return null;
+  const luma = lumaOf(video);
+  const lm = await load("VIDEO");
+  const r = lm.detectForVideo(video, performance.now());
+  const f = r.faceLandmarks?.[0];
+  if (!f) return { luma, face: null };
+  const xs = f.map((p) => p.x), ys = f.map((p) => p.y);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const width = x1 - x0;
+  const yaw = poseFromLandmarks(f.map((p) => [p.x * video.videoWidth, p.y * video.videoHeight])).yaw;
+  const pitchZ = (f[10].z - f[152].z) / Math.max(width, 1e-3); // forehead goes back, chin forward when looking up
+  const bs = r.faceBlendshapes?.[0]?.categories;
+  const score = (n: string) => bs?.find((c) => c.categoryName === n)?.score ?? 0;
+  const blink = bs ? Math.min(score("eyeBlinkLeft"), score("eyeBlinkRight")) : null;
+  const faceLuma = lumaOf(video, x0 * video.videoWidth, y0 * video.videoHeight, width * video.videoWidth, (y1 - y0) * video.videoHeight);
+  return { luma, face: { width, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, luma: faceLuma, yaw, pitchZ, blink } };
+}
+
+export const DARK_LUMA = 85;
+export const BRIGHT_LUMA = 225;
+
+/**
+ * Framing advice for one reading: face in frame, close enough, the right angle (straight for
+ * "front", turned ~30° for side shots), enough light.
+ */
+export function hintFor(r: FrameRead | null, angle: "front" | "left" | "right" = "front"): FrameHint {
+  if (!r) return { ok: false, hint: "กำลังเปิดกล้อง…" };
+  if (!r.face) return r.luma < DARK_LUMA * 0.7 ? { ok: false, dark: true, hint: "แสงไม่พอ — มองไม่เห็นใบหน้า" } : { ok: false, hint: "ให้ใบหน้าอยู่ในกรอบ" };
+  const f = r.face;
+  if (f.luma < DARK_LUMA) return { ok: false, dark: true, hint: "แสงไม่พอ — หันหน้าเข้าหาแสง" };
+  if (f.luma > BRIGHT_LUMA) return { ok: false, hint: "แสงจ้าไป — ขยับออกจากแสงตรง" };
+  if (f.width < 0.38) return { ok: false, hint: "ขยับเข้าใกล้กล้องอีกนิด" };
+  if (f.width > 0.82) return { ok: false, hint: "ถอยออกนิดหนึ่ง" };
+  if (Math.abs(f.cx - 0.5) > 0.15 || Math.abs(f.cy - 0.5) > 0.18) return { ok: false, hint: "เลื่อนหน้าให้อยู่กลางกรอบ" };
+  if (angle === "front" && Math.abs(f.yaw) > 10) return { ok: false, hint: "หันหน้าตรงเข้ากล้อง" };
+  // left side of the face shows when the head turns to the person's right (yaw < 0)
+  if (angle === "left" && !(f.yaw < -20 && f.yaw > -50)) return { ok: false, hint: f.yaw >= -20 ? "หันหน้าไปทางขวาอีก ให้เห็นแก้มซ้าย" : "หันกลับมานิดหนึ่ง" };
+  if (angle === "right" && !(f.yaw > 20 && f.yaw < 50)) return { ok: false, hint: f.yaw <= 20 ? "หันหน้าไปทางซ้ายอีก ให้เห็นแก้มขวา" : "หันกลับมานิดหนึ่ง" };
   return { ok: true, hint: "พร้อมถ่าย" };
+}
+
+/** Back-compat: one-shot framing hint. */
+export async function frameHint(video: HTMLVideoElement, angle: "front" | "left" | "right" = "front"): Promise<FrameHint> {
+  return hintFor(await readFrame(video), angle);
 }
 
 /**
