@@ -144,14 +144,16 @@ export function ProductArt({ p, size = 64, className = "", face = false, mood }:
 
   if (img && !broken)
     return (
-      <span className={`relative grid shrink-0 place-items-end justify-center ${className}`} style={{ width: W, height: H }}>
+      // flex (not grid) so max-h/max-w resolve against the fixed box — in a grid the % sizes
+      // fall back to the photo's natural size and big photos spill over the text below
+      <span className={`relative flex shrink-0 items-end justify-center ${className}`} style={{ width: W, height: H }}>
         <img
           src={img}
           alt=""
           loading="lazy"
           draggable={false}
           onError={() => setBroken(true)}
-          className="max-h-full max-w-full rounded-xl object-contain drop-shadow-[0_6px_8px_rgb(43_34_48/0.18)]"
+          className="block h-auto max-h-full w-auto max-w-full min-w-0 rounded-xl object-contain drop-shadow-[0_6px_8px_rgb(43_34_48/0.18)]"
         />
       </span>
     );
