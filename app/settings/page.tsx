@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import {
   BellRing, CalendarDays, Camera, CircleCheck, CircleX, Copy, Database, Download, Flame, KeyRound, LogOut, MessageCircle, Moon,
-  Nfc, Palette, Printer, ScanFace, Send, Smartphone, Sun, Timer, Trash2, Upload, User,
+  Nfc, Palette, Printer, ScanFace, Smartphone, Sun, Timer, Trash2, Upload, User,
 } from "lucide-react";
 import { useData } from "@/lib/data";
 import * as core from "@/lib/core.js";
@@ -75,18 +75,6 @@ export default function SettingsPage() {
     } finally {
       setBusy(false);
     }
-  };
-
-  const sendTest = async () => {
-    setBusy(true);
-    const { data, error } = await sb().functions.invoke("skiinx/test-notify");
-    setBusy(false);
-    if (error || !data?.ok) return flash("ส่งไม่สำเร็จ" + (data?.error ? `: ${data.error}` : ""), false);
-    const parts: string[] = [];
-    if (data.push?.sent) parts.push(`เครื่อง ${data.push.sent} เครื่อง`);
-    if (data.discord?.ok) parts.push("Discord");
-    if (parts.length) flash(`ส่งแล้ว: ${parts.join(" · ")}`);
-    else flash("ยังไม่มีช่องทางที่พร้อมรับแจ้งเตือน", false);
   };
 
   return (
@@ -171,11 +159,6 @@ export default function SettingsPage() {
             <Switch label="สรุปรายสัปดาห์" checked={settings.weeklySummary} onChange={(v) => set({ weeklySummary: v })} />
           </div>
         </Row>
-        {cloudEnabled && (
-          <button className="btn-ghost w-full" disabled={busy} onClick={sendTest}>
-            <Send className="h-4 w-4" /> ส่งแจ้งเตือนทดสอบ
-          </button>
-        )}
       </Section>
 
       <Section title="ปฏิทิน" icon={CalendarDays}>
