@@ -1,7 +1,8 @@
 "use client";
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, FileSpreadsheet, Flower2, Heart, Moon, Plus, Sparkles, Sprout, Star, Sun, Wand2 } from "lucide-react";
+import { CalendarClock, ChevronRight, FileSpreadsheet, Flower2, Heart, Moon, Plus, Sparkles, Sprout, Star, Sun, Wand2 } from "lucide-react";
+import { expiryState } from "@/lib/expiry.js";
 import { useData } from "@/lib/data";
 import * as core from "@/lib/core.js";
 import { CATEGORIES } from "@/lib/ingredients.js";
@@ -43,7 +44,7 @@ function Deco({ kind, i }: { kind: DecoKind; i: number }) {
 }
 
 export default function ShelfPage() {
-  const { ready, snap } = useData();
+  const { ready, snap, today } = useData();
   const [sheet, setSheet] = useState<{ open: boolean; edit: Product | null }>({ open: false, edit: null });
   const [poke, setPoke] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -52,6 +53,7 @@ export default function ShelfPage() {
   const products = useMemo(
     () =>
       snap.products
+        .filter((p) => p.status !== "empty")
         .map((p, i) => [p, i] as const)
         .sort((a, b) => (CATEGORIES[a[0].category]?.order ?? 45) - (CATEGORIES[b[0].category]?.order ?? 45) || a[1] - b[1])
         .map(([p]) => p),
@@ -225,6 +227,8 @@ export default function ShelfPage() {
         </Link>
       )}
 
+      <ProductsLink products={snap.products} today={today} />
+
       <Link href="/schedule" className="card press flex items-center gap-3">
         <span className="icon-tile h-11 w-11 rounded-xl">
           <FileSpreadsheet className="h-5 w-5" />
@@ -250,5 +254,25 @@ export default function ShelfPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function ProductsLink({ products, today }: { products: Product[]; today: string }) {
+  const states = products.map((p) => expiryState(p, today).state);
+  const expired = states.filter((x) => x === "expired").length, soon = states.filter((x) => x === "soon").length;
+  return (
+    <Link href="/shelf/products" className="card press flex items-center gap-3">
+      <span className="icon-tile h-11 w-11 rounded-xl">
+        <CalendarClock className="h-5 w-5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold">สินค้าของฉัน · วันหมดอายุ</span>
+        <span className="block text-sm text-muted">
+          {expired ? <b className="text-red-500">หมดอายุแล้ว {expired} ชิ้น</b> : soon ? <b className="text-orange-500">ใกล้หมดอายุ {soon} ชิ้น</b> : "ดูวันเปิด ใช้ไปนานแค่ไหน และของที่ใช้หมด"}
+        </span>
+      </span>
+      {expired + soon > 0 && <span className="grid h-6 min-w-6 place-items-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">{expired + soon}</span>}
+      <ChevronRight className="h-5 w-5 shrink-0 text-muted" />
+    </Link>
   );
 }

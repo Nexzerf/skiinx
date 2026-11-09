@@ -23,7 +23,7 @@ const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
 export default function RoutineBuilder() {
   const { ready, snap, today, schedules, addSchedule } = useData();
   const router = useRouter();
-  const products = useMemo(() => snap.products.map((p) => ({ ...p, id: String(p.id) })), [snap.products]);
+  const products = useMemo(() => snap.products.filter((p) => p.status !== "empty").map((p) => ({ ...p, id: String(p.id) })), [snap.products]);
   const byId = useMemo(() => Object.fromEntries(products.map((p) => [p.id, p])), [products]);
 
   const [level, setLevel] = useState<Level>("normal");

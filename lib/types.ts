@@ -33,6 +33,12 @@ export type Product = {
   source?: "manual" | "obf";
   off_code?: string | null;
   created_at?: string;
+  // expiry tracking
+  status?: "unopened" | "opened" | "empty";
+  opened_at?: string | null;
+  pao_months?: number | null;
+  expires_on?: string | null;
+  finished_at?: string | null;
 };
 export type SettingsRow = { data: Record<string, any>; ics_token?: string | null };
 export type Snapshot = {

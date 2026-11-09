@@ -199,3 +199,16 @@ test("specific ingredients count as their rule group", async () => {
   assert.equal(ing.searchIngredients("เปปไทด์")[0], "peptide");
   assert.ok(ing.searchIngredients("vitamin c").includes("laa"));
 });
+
+test("reads specific ingredients off a label, ignoring pH buffers", async () => {
+  const ing = await import("../lib/ingredients.js");
+  const inci = "Aqua, Glycerin, Niacinamide, Sodium Hyaluronate, Citric Acid, Lactic Acid, Centella Asiatica Extract, Cetearyl Alcohol, Tocopherol, Palmitoyl Tripeptide-1";
+  const found = ing.detectIngredients("Calming Serum", inci);
+  for (const k of ["glycerin", "niacinamide_i", "hyaluronic", "centella"]) assert.ok(found.includes(k), k);
+  for (const k of ["citric", "lactic", "alcohol"]) assert.ok(!found.includes(k), k);
+  const a = ing.analyzeProduct({ name: "Calming Serum", ingredients: inci, detectSpecific: true });
+  assert.ok(!a.actives.includes("aha"));
+  assert.ok(a.actives.includes("niacinamide") && a.actives.includes("niacinamide_i"));
+  assert.ok(ing.detectIngredients("The Ordinary Azelaic Acid Suspension 10%").includes("azelaic_i"));
+  assert.ok(ing.detectIngredients("Glycolic Acid 7% Toning Solution").includes("glycolic"));
+});

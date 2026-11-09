@@ -21,6 +21,7 @@ export default function Today() {
 
   if (!ready) return <p className="py-24 text-center text-muted">กำลังโหลด…</p>;
 
+  const onShelf = snap.products.filter((p) => p.status !== "empty").length;
   const hour = core.zonedParts(now, settings.tz).hour;
   const greet = hour < 12 && hour >= 4 ? "สวัสดีตอนเช้า" : hour < 17 && hour >= 12 ? "สวัสดีตอนบ่าย" : "สวัสดีตอนเย็น";
 
@@ -63,13 +64,13 @@ export default function Today() {
               <p className="text-lg font-semibold">เริ่มยังไงดี?</p>
               <p className="text-sm text-muted">เลือกทางที่สะดวก เปลี่ยนทีหลังได้เสมอ</p>
             </div>
-            <Link href={snap.products.length ? "/shelf/routine" : "/shelf"} className="hero press flex items-center gap-3">
+            <Link href={onShelf ? "/shelf/routine" : "/shelf"} className="hero press flex items-center gap-3">
               <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/25">
-                {snap.products.length ? <Wand2 className="h-6 w-6" /> : <LibraryBig className="h-6 w-6" />}
+                {onShelf ? <Wand2 className="h-6 w-6" /> : <LibraryBig className="h-6 w-6" />}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[17px] font-bold">{snap.products.length ? "ให้ระบบจัดรูทีนให้" : "เพิ่มสกินแคร์ที่มี"}</span>
-                <span className="block text-sm text-white/85">{snap.products.length ? `จาก ${snap.products.length} ชิ้นบนชั้นวาง` : "แล้วระบบจัดลำดับและรอบคืนให้ ไม่ต้องทำตาราง"}</span>
+                <span className="block text-[17px] font-bold">{onShelf ? "ให้ระบบจัดรูทีนให้" : "เพิ่มสกินแคร์ที่มี"}</span>
+                <span className="block text-sm text-white/85">{onShelf ? `จาก ${onShelf} ชิ้นบนชั้นวาง` : "แล้วระบบจัดลำดับและรอบคืนให้ ไม่ต้องทำตาราง"}</span>
               </span>
               <ChevronRight className="h-5 w-5 shrink-0" />
             </Link>

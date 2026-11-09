@@ -2,14 +2,18 @@
 // Add / edit a shelf product: search Open Beauty Facts → pick → tweak, or add by hand
 // with your own photo or a cute icon. Category and key actives are detected automatically.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ImagePlus, LoaderCircle, PenLine, Search, Shapes, Sparkles, Trash2, TriangleAlert, X } from "lucide-react";
+import { CalendarClock, Check, ImagePlus, ScanLine, LoaderCircle, PenLine, Search, Shapes, Sparkles, Trash2, TriangleAlert, X } from "lucide-react";
 import { Sheet } from "./Sheet";
+import { ProductScanner, type ScanResult } from "./ProductScanner";
 import { ICON_KEYS, PRODUCT_COLORS, PRODUCT_ICONS, ProductArt, defaultColor, defaultIcon } from "./ProductArt";
 import { ACTIVES, ACTIVE_KEYS, CATEGORIES, CATEGORY_KEYS, INGREDIENTS, analyzeProduct, searchIngredients } from "@/lib/ingredients.js";
 import { defaultHowto } from "@/lib/routineEngine.js";
 import { searchProducts, type FoundProduct } from "@/lib/obf";
 import { shrinkImage } from "@/lib/image";
 import { uploadProductImage } from "@/lib/store";
+import { DEFAULT_PAO, PAO_CHOICES, expiryState, expiryText } from "@/lib/expiry.js";
+import { DatePicker, Select } from "./controls";
+import { Segmented } from "./ui";
 import { useData } from "@/lib/data";
 import type { Product } from "@/lib/types";
 
@@ -26,18 +30,30 @@ type Draft = {
   source: "manual" | "obf";
   off_code: string | null;
   tags?: string[];
+  status: "unopened" | "opened" | "empty";
+  opened_at: string | null;
+  pao_months: number | null;
+  expires_on: string | null;
+  finished_at: string | null;
 };
 
-const blank = (): Draft => ({ name: "", brand: "", category: "other", actives: [], ingredients: "", howto: "", image_url: null, icon: null, color: null, source: "manual", off_code: null });
+// `today` = the app's logical date (settings time zone), not the device clock
+const blank = (today: string): Draft => ({
+  name: "", brand: "", category: "other", actives: [], ingredients: "", howto: "", image_url: null, icon: null, color: null, source: "manual", off_code: null,
+  status: "opened", opened_at: today, pao_months: null, expires_on: null, finished_at: null,
+});
 
-export function ProductSheet({ open, onClose, edit, usedIn, onSaved }: { open: boolean; onClose: () => void; edit?: Product | null; usedIn?: string[]; onSaved?: (name: string) => void }) {
-  const { addProduct, updateProduct, deleteProduct } = useData();
+export function ProductSheet({
+  open, onClose, edit, usedIn, onSaved, startScan,
+}: { open: boolean; onClose: () => void; edit?: Product | null; usedIn?: string[]; onSaved?: (name: string) => void; startScan?: boolean }) {
+  const [scanning, setScanning] = useState(false);
+  const { addProduct, updateProduct, deleteProduct, today } = useData();
   const [step, setStep] = useState<"search" | "form">("search");
   const [q, setQ] = useState("");
   const [found, setFound] = useState<FoundProduct[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchErr, setSearchErr] = useState(false);
-  const [d, setD] = useState<Draft>(blank);
+  const [d, setD] = useState<Draft>(() => blank(today));
   const [touched, setTouched] = useState({ cat: false, actives: false });
   const [art, setArt] = useState<"photo" | "icon">("icon");
   const [file, setFile] = useState<{ blob: Blob; url: string } | null>(null);
@@ -67,17 +83,24 @@ export function ProductSheet({ open, onClose, edit, usedIn, onSaved }: { open: b
         color: edit.color || null,
         source: edit.source || "manual",
         off_code: edit.off_code || null,
+        status: edit.status || "opened",
+        opened_at: edit.opened_at || null,
+        pao_months: edit.pao_months ?? null,
+        expires_on: edit.expires_on || null,
+        finished_at: edit.finished_at || null,
       });
       setTouched({ cat: true, actives: true });
       setArt(edit.image_url ? "photo" : "icon");
       setStep("form");
     } else {
-      setD(blank());
+      setD(blank(today));
       setTouched({ cat: false, actives: false });
       setArt("icon");
       setStep("search");
+      if (startScan) setScanning(true);
     }
-  }, [open, edit]);
+    if (!open) setScanning(false);
+  }, [open, edit, startScan]);
 
   useEffect(
     () => () => {
@@ -116,7 +139,7 @@ export function ProductSheet({ open, onClose, edit, usedIn, onSaved }: { open: b
   }, [q, step]);
 
   // auto-tag from the name until the user picks by hand
-  const auto = useMemo(() => analyzeProduct({ name: d.name, brand: d.brand, ingredients: d.ingredients, tags: d.tags }), [d.name, d.brand, d.ingredients, d.tags]);
+  const auto = useMemo(() => analyzeProduct({ name: d.name, brand: d.brand, ingredients: d.ingredients, tags: d.tags, detectSpecific: true }), [d.name, d.brand, d.ingredients, d.tags]);
   useEffect(() => {
     setD((x) => ({
       ...x,
@@ -128,13 +151,35 @@ export function ProductSheet({ open, onClose, edit, usedIn, onSaved }: { open: b
   const set = (patch: Partial<Draft>) => setD((x) => ({ ...x, ...patch }));
 
   const pick = (f: FoundProduct) => {
-    setD({ ...blank(), name: f.name, brand: f.brand, ingredients: f.ingredients, image_url: f.image, source: "obf", off_code: f.code || null, tags: f.tags });
+    setD({ ...blank(today), name: f.name, brand: f.brand, ingredients: f.ingredients, image_url: f.image, source: "obf", off_code: f.code || null, tags: f.tags });
     setTouched({ cat: false, actives: false });
     setArt(f.image ? "photo" : "icon");
     setStep("form");
   };
+  const onScan = async (r: ScanResult) => {
+    setScanning(false);
+    if (r.kind === "barcode") return pick(r.found);
+    const { info } = r;
+    setD({
+      ...blank(today),
+      name: info.name,
+      brand: info.brand,
+      ingredients: info.ingredients,
+      off_code: r.code,
+      expires_on: info.expires_on,
+      pao_months: info.pao_months,
+    });
+    setTouched({ cat: false, actives: false });
+    if (r.photo) {
+      const blob = await shrinkImage(r.photo);
+      setFile({ blob, url: URL.createObjectURL(blob) });
+      setArt("photo");
+    } else setArt("icon");
+    setStep("form");
+  };
+
   const manual = () => {
-    setD({ ...blank(), name: q.trim() });
+    setD({ ...blank(today), name: q.trim() });
     setTouched({ cat: false, actives: false });
     setArt("icon");
     setStep("form");
@@ -179,6 +224,11 @@ export function ProductSheet({ open, onClose, edit, usedIn, onSaved }: { open: b
         color: d.color,
         source: d.source,
         off_code: d.off_code,
+        status: d.status,
+        opened_at: d.status === "unopened" ? null : d.opened_at,
+        pao_months: d.pao_months,
+        expires_on: d.expires_on,
+        finished_at: d.status === "empty" ? d.finished_at || today : null,
       };
       if (edit) await updateProduct(edit.id, row);
       else await addProduct(row);
@@ -208,6 +258,8 @@ export function ProductSheet({ open, onClose, edit, usedIn, onSaved }: { open: b
   const title = step === "search" ? "เพิ่มสกินแคร์" : edit ? "แก้ไขสกินแคร์" : "เกือบเสร็จแล้ว";
 
   return (
+    <>
+    {open && scanning && <ProductScanner onResult={onScan} onClose={() => setScanning(false)} />}
     <Sheet
       open={open}
       onClose={onClose}
@@ -251,6 +303,16 @@ export function ProductSheet({ open, onClose, edit, usedIn, onSaved }: { open: b
               )
             )}
           </label>
+
+          <button onClick={() => setScanning(true)} className="hero press flex w-full items-center gap-3 p-3.5 text-left">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/25">
+              <ScanLine className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">สแกนสินค้า</span>
+              <span className="block text-xs text-white/85">บาร์โค้ด หรือถ่ายฉลาก — ดึงชื่อ ส่วนผสม และวันหมดอายุให้</span>
+            </span>
+          </button>
 
           <button onClick={manual} className="press flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-soft">
             <span className="icon-tile h-11 w-11 rounded-xl">
@@ -432,6 +494,8 @@ export function ProductSheet({ open, onClose, edit, usedIn, onSaved }: { open: b
             <input id="phow" className="input" value={d.howto} onChange={(e) => set({ howto: e.target.value })} placeholder={defaultHowto(d.category) || "เช่น ทาบาง ๆ ทั่วหน้า"} />
           </div>
 
+          <ExpiryFields d={d} set={set} today={today} />
+
           {edit && usedIn && usedIn.length > 0 && (
             <p className="rounded-2xl bg-white p-3 text-sm text-muted shadow-soft">
               ใช้อยู่ใน: <b className="text-ink">{usedIn.join(" · ")}</b>
@@ -450,6 +514,7 @@ export function ProductSheet({ open, onClose, edit, usedIn, onSaved }: { open: b
         </div>
       )}
     </Sheet>
+    </>
   );
 }
 
@@ -535,6 +600,90 @@ function IngredientPicker({ value, onChange }: { value: string[]; onChange: (v: 
             ปิดรายการ
           </button>
         </div>
+      )}
+    </div>
+  );
+}
+
+/* ───────── expiry ───────── */
+
+const TH_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+const thDate = (s: string) => {
+  const [y, m, d] = s.split("-").map(Number);
+  return `${d} ${TH_MONTHS[m - 1]} ${y + 543}`;
+};
+const endOfMonth = (y: number, m: number) => `${y}-${String(m).padStart(2, "0")}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, "0")}`;
+
+function ExpiryFields({ d, set, today }: { d: Draft; set: (p: Partial<Draft>) => void; today: string }) {
+  const st = expiryState(d, today);
+  const thisYear = +today.slice(0, 4);
+  const [ey, em] = d.expires_on ? d.expires_on.split("-").map(Number) : [0, 0];
+  const suggest = DEFAULT_PAO[d.category] ?? 12;
+  return (
+    <div className="space-y-3 rounded-3xl bg-white p-4 shadow-soft">
+      <p className="flex items-center gap-2 font-semibold">
+        <CalendarClock className="h-4 w-4 text-brand-500" /> วันหมดอายุ
+      </p>
+      <Segmented
+        value={d.status}
+        onChange={(status) => set({ status, opened_at: status !== "unopened" ? d.opened_at || today : d.opened_at, finished_at: status === "empty" ? d.finished_at || today : null })}
+        options={[
+          { value: "unopened", label: "ยังไม่เปิด" },
+          { value: "opened", label: "เปิดใช้แล้ว" },
+          { value: "empty", label: "ใช้หมดแล้ว" },
+        ]}
+      />
+      {d.status !== "unopened" && (
+        <div>
+          <p className="label">เปิดใช้เมื่อ</p>
+          <DatePicker value={d.opened_at || today} onChange={(opened_at) => set({ opened_at })} />
+        </div>
+      )}
+      {d.status === "empty" && (
+        <div>
+          <p className="label">ใช้หมดเมื่อ</p>
+          <DatePicker value={d.finished_at || today} onChange={(finished_at) => set({ finished_at })} />
+        </div>
+      )}
+      <div>
+        <p className="label">ใช้ได้กี่เดือนหลังเปิด (สัญลักษณ์กระปุก “12M”)</p>
+        <div className="flex flex-wrap gap-1.5">
+          {PAO_CHOICES.map((m) => (
+            <button
+              key={m}
+              onClick={() => set({ pao_months: d.pao_months === m ? null : m })}
+              className={`h-9 min-w-12 rounded-full border px-3 text-sm font-medium transition active:scale-95 ${
+                d.pao_months === m ? "border-transparent bg-brand-500 text-white" : `bg-white text-ink/70 ${m === suggest ? "border-brand-300" : "border-brand-100"}`
+              }`}
+            >
+              {m}M
+            </button>
+          ))}
+        </div>
+        {d.pao_months == null && <p className="mt-1 text-xs text-muted">ไม่รู้ให้ข้ามได้ ส่วนใหญ่{d.category === "other" ? "" : "ประเภทนี้"}อยู่ที่ประมาณ {suggest} เดือน</p>}
+      </div>
+      <div>
+        <p className="label">วันหมดอายุบนกล่อง (EXP)</p>
+        <div className="flex gap-2">
+          <Select
+            className="flex-1"
+            value={em || 0}
+            onChange={(m) => set({ expires_on: m ? endOfMonth(ey || thisYear + 1, m) : null })}
+            options={[{ value: 0, label: "ไม่ระบุ" }, ...TH_MONTHS.map((l, i) => ({ value: i + 1, label: l }))]}
+          />
+          <Select
+            className="flex-1"
+            value={ey || 0}
+            onChange={(y) => set({ expires_on: y ? endOfMonth(y, em || 12) : null })}
+            options={[{ value: 0, label: "ปี" }, ...Array.from({ length: 8 }, (_, i) => thisYear - 2 + i).map((y) => ({ value: y, label: String(y + 543) }))]}
+          />
+        </div>
+      </div>
+      {st.date && d.status !== "empty" && (
+        <p className={`rounded-2xl p-3 text-sm ${st.state === "expired" ? "bg-red-50 text-red-700" : st.state === "soon" ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-700"}`}>
+          {st.state === "expired" ? "หมดอายุแล้ว" : "ใช้ได้ถึง"} <b>{thDate(st.date)}</b> · {expiryText(st)}
+          <span className="block text-xs opacity-75">{st.by === "pao" ? `นับ ${d.pao_months} เดือนจากวันที่เปิด` : "ตามวันที่บนกล่อง"}</span>
+        </p>
       )}
     </div>
   );

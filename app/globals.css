@@ -384,3 +384,7 @@ input[type="range"] {
 .nudge-up { --d: -5px; animation: nudge-y 0.9s ease-in-out infinite; }
 .nudge-down { --d: 5px; animation: nudge-y 0.9s ease-in-out infinite; }
 .pulse-soft { animation: pulse-soft 1.6s ease-in-out infinite; }
+
+/* product scanner: a laser line sweeping the frame */
+@keyframes scan-line { 0%, 100% { top: 10%; } 50% { top: 88%; } }
+.scan-line { animation: scan-line 2.2s ease-in-out infinite; }

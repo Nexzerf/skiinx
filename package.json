@@ -18,11 +18,16 @@
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.2.2",
     "@supabase/supabase-js": "^2.119.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@tesseract.js-data/tha": "^1.0.0",
+    "@zxing/browser": "^0.2.1",
+    "@zxing/library": "^0.23.0",
     "lucide-react": "^1.70.0",
     "next": "^15.5.29",
     "qrcode": "^1.5.4",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.5",

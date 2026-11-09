@@ -1,0 +1,13 @@
+type P = { status?: string | null; opened_at?: string | null; pao_months?: number | null; expires_on?: string | null };
+export type ExpiryState = { state: "expired" | "soon" | "ok" | "unknown" | "empty"; days: number | null; date: string | null; by: "pao" | "printed" | null };
+export const PAO_CHOICES: number[];
+export const SOON_DAYS: number;
+export const DEFAULT_PAO: Record<string, number>;
+export function addMonths(date: string, months: number): string;
+export function daysBetween(a: string, b: string): number;
+export function expiryOf(p: P): { date: string; by: "pao" | "printed" } | null;
+export function expiryState(p: P, today: string): ExpiryState;
+export function durationTh(from: string | null | undefined, to: string): string;
+export function expiryText(st: ExpiryState): string;
+export function parseExpiry(text: string): string | null;
+export function parsePao(text: string): number | null;

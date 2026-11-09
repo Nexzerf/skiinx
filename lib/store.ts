@@ -258,7 +258,7 @@ export async function importSnapshot(snap: Snapshot, data: Snapshot): Promise<Sn
 
 /* ───────── shelf ───────── */
 
-const PRODUCT_COLS = ["name", "brand", "category", "actives", "ingredients", "howto", "image_url", "icon", "color", "source", "off_code"] as const;
+const PRODUCT_COLS = ["name", "brand", "category", "actives", "ingredients", "howto", "image_url", "icon", "color", "source", "off_code", "status", "opened_at", "pao_months", "expires_on", "finished_at"] as const;
 const pick = (p: Partial<Product>) => Object.fromEntries(PRODUCT_COLS.filter((k) => k in p).map((k) => [k, (p as any)[k]]));
 
 export async function addProduct(snap: Snapshot, p: Omit<Product, "id">): Promise<Snapshot> {

@@ -4,7 +4,7 @@ export const ACTIVES: Record<string, { label: string; strong: boolean }>;
 export const ACTIVE_KEYS: string[];
 export function detectActives(text: string): string[];
 export function guessCategory(name: string, tags?: string[]): string;
-export function analyzeProduct(p: { name?: string; brand?: string | null; ingredients?: string | null; category?: string; actives?: string[]; tags?: string[] }): { category: string; actives: string[] };
+export function analyzeProduct(p: { name?: string; brand?: string | null; ingredients?: string | null; category?: string; actives?: string[]; tags?: string[]; detectSpecific?: boolean }): { category: string; actives: string[] };
 export function isStrong(p: { actives?: string[] }): boolean;
 export function has(p: { actives?: string[] }, a: string): boolean;
 export function isAcid(p: { actives?: string[] }): boolean;
@@ -12,3 +12,4 @@ export const INGREDIENTS: Record<string, { label: string; en: string; group?: st
 export const INGREDIENT_KEYS: string[];
 export function ingredientLabel(k: string): string;
 export function searchIngredients(q: string, exclude?: string[]): string[];
+export function detectIngredients(name: string, inci?: string): string[];
