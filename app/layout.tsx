@@ -4,6 +4,7 @@ import "./globals.css";
 import { DataProvider } from "@/lib/data";
 import BottomNav from "@/components/BottomNav";
 import SwRegister from "@/components/SwRegister";
+import NoCopyNoZoom from "@/components/NoCopyNoZoom";
 
 const thai = Noto_Sans_Thai({ subsets: ["thai", "latin"], weight: ["400", "500", "600", "700"], variable: "--font-thai", display: "swap" });
 
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: "Skiinx", statusBarStyle: "default" },
   icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
 };
-export const viewport: Viewport = { themeColor: "#fdf7f9", width: "device-width", initialScale: 1, viewportFit: "cover" };
+export const viewport: Viewport = { themeColor: "#fdf7f9", width: "device-width", initialScale: 1, maximumScale: 1, userScalable: false, viewportFit: "cover" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <BottomNav />
         </DataProvider>
         <SwRegister />
+        <NoCopyNoZoom />
       </body>
     </html>
   );

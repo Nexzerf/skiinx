@@ -47,8 +47,8 @@ export default function InviteCard({ onError }: { onError: (msg: string) => void
       {code ? (
         <div className="pop space-y-2.5 rounded-2xl bg-canvas p-3">
           <p className="text-center text-xs text-muted">รหัสเชิญ (ใช้ได้ 1 คน ภายใน 14 วัน)</p>
-          <p className="text-center text-2xl font-bold tracking-[0.25em] text-brand-600 tabular-nums">{code}</p>
-          <p className="truncate rounded-xl bg-white px-3 py-2 text-center text-xs text-muted select-all">{link}</p>
+          <p className="text-center text-2xl font-bold tracking-[0.25em] text-brand-600 tabular-nums copyable" data-copyable>{code}</p>
+          <p className="truncate rounded-xl bg-white px-3 py-2 text-center text-xs text-muted copyable" data-copyable>{link}</p>
           <div className="flex gap-2">
             <button className="btn-plain flex-1 py-2.5" onClick={copy}>
               {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
