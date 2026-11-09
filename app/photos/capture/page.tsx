@@ -50,7 +50,7 @@ function Capture() {
     if (phase !== "score" || !front.current || !settings.autoAnalyze) return;
     let alive = true;
     setAnalysis({ state: "loading" });
-    analyzePhoto(front.current)
+    analyzePhoto(front.current, { sensitivity: settings.spotSensitivity })
       .then(async (p) => {
         if (!alive) return;
         setAnalysis({ state: "done", metrics: p.ai, regions: p.regions });

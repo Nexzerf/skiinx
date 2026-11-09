@@ -45,7 +45,7 @@ export default function SettingsPage() {
   const set = (patch: Record<string, any>) => saveSettings(patch).catch((e) => flash(e.message, false));
 
   const token = snap.settings.ics_token;
-  const icsUrl = cloudEnabled && token ? `${supabaseUrl}/functions/v1/ics?token=${token}` : "";
+  const icsUrl = cloudEnabled && token ? `${supabaseUrl}/functions/v1/skiinx/ics?token=${token}` : "";
   const types = Array.from(new Set(["A", "B", "C", ...schedules.flatMap((s) => s.data.days.map((x: any) => x.type).filter(Boolean))]));
 
   const togglePush = async (on: boolean) => {
@@ -64,7 +64,7 @@ export default function SettingsPage() {
 
   const sendTest = async () => {
     setBusy(true);
-    const { data, error } = await sb().functions.invoke("test-notify");
+    const { data, error } = await sb().functions.invoke("skiinx/test-notify");
     setBusy(false);
     if (error || !data?.ok) return flash("ส่งไม่สำเร็จ" + (data?.error ? `: ${data.error}` : ""), false);
     const parts: string[] = [];
@@ -208,6 +208,17 @@ export default function SettingsPage() {
               { value: "front", label: "ตรง", locked: true },
               { value: "left", label: "ซ้าย" },
               { value: "right", label: "ขวา" },
+            ]}
+          />
+        </Row>
+        <Row label="ความไวในการจับจุดแดง" sub="ปรับแล้วกด วิเคราะห์ใหม่ ที่รูปได้">
+          <Select
+            value={settings.spotSensitivity}
+            onChange={(v) => set({ spotSensitivity: v })}
+            options={[
+              { value: "low", label: "ต่ำ", hint: "เฉพาะจุดที่เห็นชัดมาก" },
+              { value: "normal", label: "ปกติ", hint: "แนะนำ" },
+              { value: "high", label: "สูง", hint: "จับจุดจาง ๆ ด้วย" },
             ]}
           />
         </Row>

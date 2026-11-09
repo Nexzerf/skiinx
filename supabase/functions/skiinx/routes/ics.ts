@@ -1,9 +1,9 @@
 // GET /functions/v1/ics?token=<ics_token>[&download=1]  → calendar feed (60 days, 2 alarms per routine).
 // Works as a subscribe URL (webcal://) or a one-off download. Deploy with --no-verify-jwt.
-import * as core from "../_shared/core.js";
-import { admin, env, loadUser } from "../_shared/db.ts";
+import * as core from "../lib/core.js";
+import { admin, env, loadUser } from "../lib/db.ts";
 
-Deno.serve(async (req) => {
+export default async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const token = url.searchParams.get("token") || "";
   if (!/^[0-9a-f]{20,}$/i.test(token)) return new Response("not found", { status: 404 });
@@ -15,4 +15,4 @@ Deno.serve(async (req) => {
   const headers: Record<string, string> = { "Content-Type": "text/calendar; charset=utf-8", "Cache-Control": "max-age=900" };
   if (url.searchParams.get("download")) headers["Content-Disposition"] = 'attachment; filename="skincare.ics"';
   return new Response(ics, { headers });
-});
+}

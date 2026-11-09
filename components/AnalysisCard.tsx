@@ -109,6 +109,9 @@ export default function AnalysisCard({
             </div>
           )}
 
+          {metrics.spots.total > 0 && Object.keys(urls).length > 0 && (
+            <p className="text-[11px] text-muted">วงสีชมพูในภาพ = จุดที่นับ</p>
+          )}
           {d?.brightness != null && Math.abs(d.brightness) > 8 && (
             <p className="flex items-start gap-2 rounded-2xl bg-amber-50 p-3 text-xs text-amber-800">
               <SunDim className="h-4 w-4 shrink-0" /> แสงต่างจากรูปครั้งก่อนพอสมควร ตัวเลขอาจคลาดเคลื่อน — ถ่ายที่เดิม แสงเดิมจะเทียบได้แม่นกว่า

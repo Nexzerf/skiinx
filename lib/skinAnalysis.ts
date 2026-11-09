@@ -2,12 +2,12 @@
 // then lib/skinMetrics.js measures fixed regions so every photo is compared at the same spots.
 // Nothing leaves the device — only the resulting numbers are stored.
 import type { FaceLandmarker } from "@mediapipe/tasks-vision";
-import { analyzePixels, faceWidthOf, regionPolygons, SKIN_REGIONS, type Poly, type SkinMetrics } from "./skinMetrics.js";
+import { analyzePixels, faceWidthOf, regionPolygons, SKIN_REGIONS, type Poly, type Sensitivity, type SkinMetrics } from "./skinMetrics.js";
 import { savePhoto, type Photo } from "./photos";
 
 const LOCAL_MODEL = "/mediapipe/face_landmarker.task";
 const CDN_MODEL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
-const WORK_WIDTH = 720;
+const WORK_WIDTH = 1080; // full stored resolution — small pimples vanish when downscaled
 
 let landmarker: Promise<FaceLandmarker> | null = null;
 function load(): Promise<FaceLandmarker> {
@@ -34,7 +34,7 @@ export const preloadAnalyzer = () => load().catch(() => {});
 
 export type Analysis = { metrics: SkinMetrics; regions: Record<string, Blob> };
 
-export async function analyzeBlob(blob: Blob): Promise<Analysis> {
+export async function analyzeBlob(blob: Blob, { sensitivity = "normal" }: { sensitivity?: Sensitivity } = {}): Promise<Analysis> {
   const bmp = await createImageBitmap(blob);
   const scale = Math.min(1, WORK_WIDTH / bmp.width);
   const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
@@ -50,8 +50,10 @@ export async function analyzeBlob(blob: Blob): Promise<Analysis> {
   if (!face) throw new Error("ไม่พบใบหน้าในรูป — ลองถ่ายหน้าตรงในที่แสงสว่าง");
   const pts: Poly = face.map((p) => [p.x * w, p.y * h]);
   const polys = regionPolygons(pts);
-  const metrics = analyzePixels(ctx.getImageData(0, 0, w, h), polys, faceWidthOf(pts));
+  const metrics = analyzePixels(ctx.getImageData(0, 0, w, h), polys, faceWidthOf(pts), { sensitivity });
   metrics.at = new Date().toISOString();
+  const marks = metrics.marks || {};
+  delete metrics.marks; // positions are only for drawing; keep the stored numbers small
 
   // fixed-region crops so month-to-month comparisons look at the same patch of skin
   const regions: Record<string, Blob> = {};
@@ -72,14 +74,27 @@ export async function analyzeBlob(blob: Blob): Promise<Analysis> {
     g.closePath();
     g.clip();
     g.drawImage(canvas, x0, y0, bw, bh, 0, 0, c.width, c.height);
+    // ring every detected spot so you can see exactly what was counted
+    g.lineWidth = 2;
+    for (const m of marks[name] || []) {
+      const cx = (m.x - x0) * k, cy = (m.y - y0) * k, rr = Math.max(5, (m.r + 3) * k);
+      g.strokeStyle = "rgba(255,255,255,0.9)";
+      g.beginPath();
+      g.arc(cx, cy, rr + 1.5, 0, Math.PI * 2);
+      g.stroke();
+      g.strokeStyle = "#f1557a";
+      g.beginPath();
+      g.arc(cx, cy, rr, 0, Math.PI * 2);
+      g.stroke();
+    }
     regions[name] = await new Promise<Blob>((r) => c.toBlob((b) => r(b!), "image/jpeg", 0.88));
   }
   return { metrics, regions };
 }
 
 /** Analyse a stored photo, keep the crops on the photo and return the metrics. */
-export async function analyzePhoto(photo: Photo): Promise<Photo> {
-  const { metrics, regions } = await analyzeBlob(photo.blob);
+export async function analyzePhoto(photo: Photo, opts: { sensitivity?: Sensitivity } = {}): Promise<Photo> {
+  const { metrics, regions } = await analyzeBlob(photo.blob, opts);
   const next: Photo = { ...photo, ai: metrics, regions };
   await savePhoto(next);
   return next;

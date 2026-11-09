@@ -52,7 +52,7 @@ export default function PhotosPage() {
   if (!ready) return null;
 
   const analyze = async (p: Photo) => {
-    const done = await analyzePhoto(p);
+    const done = await analyzePhoto(p, { sensitivity: settings.spotSensitivity });
     if (p.angle === "front") {
       const log = snap.skinLogs.find((l) => l.date === p.date);
       await upsertSkinLog({ ...(log || { date: p.date, acne: null, oil: null, irritation: null, overall: null, note: null, photo_angles: ["front"] }), ai: done.ai });
@@ -228,11 +228,17 @@ export default function PhotosPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={viewing.url} alt="" className="pop w-full rounded-3xl" />
             {viewing.ai ? (
-              <AnalysisCard
-                metrics={viewing.ai}
-                regions={viewing.regions}
-                prev={photos.filter((p) => p.ai && p.angle === "front" && p.date < viewing.date).pop()?.ai}
-              />
+              <>
+                <AnalysisCard
+                  metrics={viewing.ai}
+                  regions={viewing.regions}
+                  prev={photos.filter((p) => p.ai && p.angle === "front" && p.date < viewing.date).pop()?.ai}
+                />
+                <button className="btn-plain w-full" disabled={!!busy} onClick={() => analyzeOne(viewing)}>
+                  {busy === viewing.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ScanFace className="h-4 w-4" />}
+                  {busy === viewing.id ? "กำลังวิเคราะห์บนเครื่อง…" : "วิเคราะห์ใหม่"}
+                </button>
+              </>
             ) : viewing.angle === "front" ? (
               <button className="btn-primary w-full" disabled={!!busy} onClick={() => analyzeOne(viewing)}>
                 {busy === viewing.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ScanFace className="h-4 w-4" />}

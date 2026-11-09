@@ -13,6 +13,7 @@ export type Settings = {
   lastSummaryWeek: string | null;
   discordEnabled: boolean;
   autoAnalyze: boolean;
+  spotSensitivity: "low" | "normal" | "high";
   freezesPerWeek: number;
   photoDays: number[];
   requirePhoto: boolean;

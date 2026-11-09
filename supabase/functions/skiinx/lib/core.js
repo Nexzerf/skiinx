@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS = {
   lastSummaryWeek: null,   // "YYYY-MM-DD" (Monday) of the last weekly summary sent
   discordEnabled: true,    // channel switch; delivery itself needs the server-side Discord secrets
   autoAnalyze: true,       // run the on-device skin analysis right after a front photo
+  spotSensitivity: "normal", // "low" | "normal" | "high" — how readily faint red spots are counted
   freezesPerWeek: 1,
   photoDays: [1, 15, 30],
   requirePhoto: true,

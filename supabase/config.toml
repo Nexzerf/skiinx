@@ -1,17 +1,5 @@
 project_id = "skiinx"
 
-# Every function checks auth itself (cron secret / Discord signature / ics token / push token / user JWT).
-[functions.remind]
-verify_jwt = false
-
-[functions.discord]
-verify_jwt = false
-
-[functions.ics]
-verify_jwt = false
-
-[functions.push-action]
-verify_jwt = false
-
-[functions.test-notify]
+# One function with routes (/remind /discord /ics /push-action /test-notify); each route checks auth itself.
+[functions.skiinx]
 verify_jwt = false

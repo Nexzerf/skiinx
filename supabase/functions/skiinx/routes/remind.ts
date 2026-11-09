@@ -1,13 +1,13 @@
 // Called by pg_cron every 5 minutes. Decides (core.planReminders) and sends the nag to every
 // channel that is set up: Discord DM and phone notifications (Web Push). Also the Sunday summary.
 // Deploy with --no-verify-jwt; guarded by x-cron-secret.
-import * as core from "../_shared/core.js";
-import { admin, env, json, loadUser } from "../_shared/db.ts";
-import { discordReady, reminderButtons, routineEmbed, sendDiscord, weeklyNumbers, weeklySummary } from "../_shared/discord.ts";
-import { pushAll, pushReady } from "../_shared/push.ts";
+import * as core from "../lib/core.js";
+import { admin, env, json, loadUser } from "../lib/db.ts";
+import { discordReady, reminderButtons, routineEmbed, sendDiscord, weeklyNumbers, weeklySummary } from "../lib/discord.ts";
+import { pushAll, pushReady } from "../lib/push.ts";
 
 
-Deno.serve(async (req) => {
+export default async function handler(req: Request): Promise<Response> {
   if (!env("CRON_SECRET") || req.headers.get("x-cron-secret") !== env("CRON_SECRET")) return json({ error: "unauthorized" }, 401);
   const db = admin();
   const now = new Date();
@@ -96,4 +96,4 @@ Deno.serve(async (req) => {
     }
   }
   return json({ ok: true, at: now.toISOString(), sent: report });
-});
+}

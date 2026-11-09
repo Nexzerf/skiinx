@@ -2,10 +2,22 @@
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import * as core from "./core.js";
 
-export const env = (k: string) => Deno.env.get(k) ?? "";
+// Settings come from Edge Function secrets first, then from Supabase Vault entries named
+// "skiinx_<lowercase name>" (read through the service-role-only RPC public.skiinx_config()).
+// That way generated keys (VAPID, cron secret) never need to be typed in by hand.
+let vault: Record<string, string> = {};
+let loadedAt = 0;
+export const env = (k: string) => Deno.env.get(k) || vault[`skiinx_${k.toLowerCase()}`] || "";
+
+export async function loadConfig(db: SupabaseClient) {
+  if (Date.now() - loadedAt < 60_000) return;
+  const { data, error } = await db.rpc("skiinx_config");
+  if (!error && data) vault = data as Record<string, string>;
+  loadedAt = Date.now();
+}
 
 export function admin(): SupabaseClient {
-  return createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), { auth: { persistSession: false } });
+  return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 }
 
 export type UserCtx = {

@@ -1,14 +1,14 @@
 // Discord Interactions endpoint (no always-on bot needed): buttons "ทาแล้ว"/"เลื่อน" and
 // slash commands /today /tomorrow /streak. Deploy with --no-verify-jwt (Discord signs requests instead).
-import * as core from "../_shared/core.js";
-import { admin, env, json, loadUser, markDone, ownerSettings, snooze } from "../_shared/db.ts";
-import { routineEmbed, verify } from "../_shared/discord.ts";
+import * as core from "../lib/core.js";
+import { admin, env, json, loadUser, markDone, ownerSettings, snooze } from "../lib/db.ts";
+import { routineEmbed, verify } from "../lib/discord.ts";
 
 const SLOT_TH = { am: "ตอนเช้า", pm: "ก่อนนอน" } as const;
 const reply = (data: any, type = 4) => json({ type, data });
 const ephemeral = (content: string) => reply({ content, flags: 64 });
 
-Deno.serve(async (req) => {
+export default async function handler(req: Request): Promise<Response> {
   const body = await req.text();
   if (!(await verify(req, body))) return new Response("invalid request signature", { status: 401 });
   const it = JSON.parse(body);
@@ -67,4 +67,4 @@ Deno.serve(async (req) => {
     }
   }
   return ephemeral("ไม่รู้จักคำสั่งนี้");
-});
+}

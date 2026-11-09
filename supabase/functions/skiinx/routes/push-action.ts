@@ -1,8 +1,8 @@
 // Buttons on a phone notification ("ทาแล้ว" / "เลื่อน 15 นาที") land here from the service worker.
 // Auth = the per-device random token that came inside the push payload (no login needed).
-import { CORS, admin, json, markDone, snooze } from "../_shared/db.ts";
+import { CORS, admin, json, markDone, snooze } from "../lib/db.ts";
 
-Deno.serve(async (req) => {
+export default async function handler(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ ok: false }, 405, CORS);
   const { token, action, date, slot, minutes } = await req.json().catch(() => ({}));
@@ -22,4 +22,4 @@ Deno.serve(async (req) => {
     return json({ ok: true, until }, 200, CORS);
   }
   return json({ ok: false, error: "unknown action" }, 400, CORS);
-});
+}

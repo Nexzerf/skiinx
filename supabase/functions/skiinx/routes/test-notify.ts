@@ -1,11 +1,11 @@
 // POST from Settings ("ส่งแจ้งเตือนทดสอบ"). Verifies the caller's JWT itself, then sends to every
 // configured channel and reports per channel, so the page can say exactly what worked.
-import * as core from "../_shared/core.js";
-import { CORS, admin, json, loadUser } from "../_shared/db.ts";
-import { discordReady, reminderButtons, routineEmbed, sendDiscord } from "../_shared/discord.ts";
-import { pushAll } from "../_shared/push.ts";
+import * as core from "../lib/core.js";
+import { CORS, admin, json, loadUser } from "../lib/db.ts";
+import { discordReady, reminderButtons, routineEmbed, sendDiscord } from "../lib/discord.ts";
+import { pushAll } from "../lib/push.ts";
 
-Deno.serve(async (req) => {
+export default async function handler(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   const db = admin();
   const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
@@ -40,4 +40,4 @@ Deno.serve(async (req) => {
     out.error = String(e);
   }
   return json(out, 200, CORS);
-});
+}

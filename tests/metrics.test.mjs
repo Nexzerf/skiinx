@@ -74,5 +74,29 @@ test("large red patches (not spots) are ignored", () => {
   const A = new Float32Array(100 * 100).fill(10), L = new Float32Array(100 * 100).fill(60);
   for (let y = 20; y < 80; y++) for (let x = 20; x < 80; x++) A[y * 100 + x] = 30; // one big blob
   const idx = Array.from({ length: 100 * 100 }, (_, i) => i);
-  assert.equal(countSpots(A, L, idx, 100, 5, { minArea: 3, maxArea: 200 }), 0);
+  assert.equal(countSpots(A, L, idx, 100, 5, { minArea: 3, maxArea: 200 }).count, 0);
+});
+
+test("faint but clear spots are caught (adaptive threshold), and marks are returned", () => {
+  // a* only ~4 above the surrounding skin — the old fixed threshold (7) missed these
+  const dots = [[40, 100], [60, 125]];
+  const img = image(200, 200, (x, y) => (dots.some(([dx, dy]) => (x - dx) ** 2 + (y - dy) ** 2 <= 9) ? [222, 168, 145] : SKIN));
+  const m = analyzePixels(img, POLYS, 200);
+  assert.equal(m.spots.leftCheek, 2);
+  assert.equal(m.marks.leftCheek.length, 2);
+  const near = m.marks.leftCheek.some((b) => Math.abs(b.x - 40) < 2 && Math.abs(b.y - 100) < 2);
+  assert.ok(near, JSON.stringify(m.marks.leftCheek));
+});
+
+test("sensitivity changes how much is caught on noisy skin", () => {
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const img = image(200, 200, () => {
+    const n = (rnd() - 0.5) * 10;
+    return [224 + n, 178 + n * 0.6, 152 + n * 0.6];
+  });
+  const lo = analyzePixels(img, POLYS, 200, { sensitivity: "low" }).spots.total;
+  const hi = analyzePixels(img, POLYS, 200, { sensitivity: "high" }).spots.total;
+  assert.ok(lo <= hi, `low=${lo} high=${hi}`);
+  assert.ok(lo <= 2, `noise alone should not look like acne at low sensitivity (got ${lo})`);
 });
