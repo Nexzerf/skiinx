@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
-import { Mail, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Mail, Sparkles, TriangleAlert } from "lucide-react";
+import { explainAuthError, takeAuthError } from "@/lib/authError";
 import { cloudEnabled, sb } from "@/lib/supabase";
 import { IconTile } from "@/components/ui";
 import DiscordLogo from "@/components/DiscordLogo";
@@ -9,6 +10,14 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [showEmail, setShowEmail] = useState(false);
   const [state, setState] = useState<"idle" | "sending" | "sent" | string>("idle");
+  const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => {
+    const e = takeAuthError();
+    if (e) {
+      setNotice(e);
+      if (/อีเมล/.test(e)) setShowEmail(true); // the fix starts with an email sign-in
+    }
+  }, []);
   if (!cloudEnabled) return <p className="py-20 text-center text-muted">ข้อมูลทั้งหมดเก็บอยู่บนเครื่องนี้</p>;
 
   const discord = async () => {
@@ -17,7 +26,7 @@ export default function Login() {
       provider: "discord",
       options: { redirectTo: window.location.origin },
     });
-    if (error) setState(error.message);
+    if (error) setState(explainAuthError(error.message));
   };
 
   return (
@@ -34,6 +43,11 @@ export default function Login() {
         <p className="text-muted">ส่งลิงก์เข้าสู่ระบบไปที่ {email} แล้ว — เปิดอีเมลบนเครื่องนี้แล้วกดลิงก์</p>
       ) : (
         <div className="mx-auto max-w-xs space-y-4">
+          {notice && (
+            <p className="rise flex items-start gap-2 rounded-2xl bg-amber-50 p-3 text-left text-sm text-amber-800">
+              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" /> {notice}
+            </p>
+          )}
           <button
             className="btn w-full py-3.5 text-white shadow-[0_12px_28px_-10px_rgb(88_101_242/0.7)] transition hover:brightness-110"
             style={{ background: "#5865F2" }}
@@ -51,7 +65,7 @@ export default function Login() {
                 e.preventDefault();
                 setState("sending");
                 const { error } = await sb().auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin, shouldCreateUser: true } });
-                setState(error ? error.message : "sent");
+                setState(error ? explainAuthError(error.message) : "sent");
               }}
             >
               <input type="email" required className="input text-center" placeholder="อีเมล" value={email} onChange={(e) => setEmail(e.target.value)} />

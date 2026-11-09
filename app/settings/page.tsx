@@ -16,6 +16,7 @@ import { disablePush, enablePush, pushState, type PushState } from "@/lib/push";
 import { PageTitle, Section } from "@/components/ui";
 import { CheckChips, Select, Stepper, Swatches, Switch, TimePicker } from "@/components/controls";
 import DiscordLogo from "@/components/DiscordLogo";
+import { explainAuthError, takeAuthError } from "@/lib/authError";
 
 const PUSH_NOTE: Record<PushState, string> = {
   on: "เปิดอยู่บนเครื่องนี้",
@@ -37,6 +38,8 @@ export default function SettingsPage() {
   useEffect(() => {
     setOrigin(window.location.origin);
     pushState().then(setPush);
+    const linkErr = takeAuthError(); // e.g. coming back from a failed "link Discord"
+    if (linkErr) setTimeout(() => setMsg({ text: linkErr, ok: false }), 400);
     if (cloudEnabled)
       sb()
         .auth.getUser()
@@ -124,7 +127,7 @@ export default function SettingsPage() {
                 style={{ background: "#5865F2" }}
                 onClick={async () => {
                   const { error } = await sb().auth.linkIdentity({ provider: "discord", options: { redirectTo: `${window.location.origin}/settings` } });
-                  if (error) flash(error.message, false);
+                  if (error) flash(explainAuthError(error.message), false);
                 }}
               >
                 <DiscordLogo /> เชื่อมบัญชี Discord

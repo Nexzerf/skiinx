@@ -9,6 +9,7 @@ import { cloudEnabled, sb } from "./supabase";
 import { clearNotification } from "./push";
 import type { Checkin, ScheduleRow, SkinLog, Slot, Snapshot } from "./types";
 import Splash from "@/components/Splash";
+import { captureAuthError } from "./authError";
 
 type Ctx = {
   ready: boolean;
@@ -76,6 +77,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setReady(true);
       return;
     }
+    captureAuthError();
     const auth = sb().auth;
     const enter = async (userId: string, mail: string | null) => {
       if (signedIn.current && userIdRef.current === userId) return;
