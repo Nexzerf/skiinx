@@ -29,40 +29,20 @@ npm test             # core + skin metrics (ทดสอบกับไฟล์
 
 ## Deploy (ฟรีทั้งหมด)
 
-1. **Supabase** (Free, Singapore)
-   ```bash
-   npx supabase login
-   npx supabase link --project-ref <ref>
-   npx supabase db push
-   ```
-2. **Vault + cron** — SQL Editor:
-   ```sql
-   select vault.create_secret('https://<ref>.supabase.co', 'project_url');
-   select vault.create_secret('<สุ่มสตริงยาว ๆ>', 'cron_secret');
-   ```
-   แล้วรัน [supabase/cron.sql](supabase/cron.sql)
-3. **คีย์แจ้งเตือนมือถือ** — `npm run gen-vapid` (ได้ public + private key)
-4. **Discord** (ข้ามได้ถ้าใช้แค่แจ้งเตือนมือถือ) — https://discord.com/developers → New Application
-   - Bot → Reset Token · General Information → Application ID, Public Key
-   - สร้างเซิร์ฟเวอร์ส่วนตัว → OAuth2 → URL Generator → scope `bot` → เชิญบอท
-   - Discord → Settings → Advanced → Developer Mode → คลิกขวาชื่อตัวเอง → Copy User ID
-5. **Secrets**
-   ```bash
-   npx supabase secrets set CRON_SECRET=<ค่าเดียวกับ cron_secret> APP_URL=https://<app>.vercel.app \
-     VAPID_PUBLIC_KEY=… VAPID_PRIVATE_KEY=… \
-     DISCORD_MODE=bot DISCORD_BOT_TOKEN=… DISCORD_PUBLIC_KEY=… DISCORD_USER_ID=…
-   ```
-   (webhook: `DISCORD_MODE=webhook DISCORD_WEBHOOK_URL=…` · หลายบัญชีใน Auth: ตั้ง `APP_USER_ID=<uuid>`)
-6. **Functions**
-   ```bash
-   npm run sync-core
-   npx supabase functions deploy remind discord ics push-action test-notify --no-verify-jwt
-   ```
-7. **Discord Interactions Endpoint URL** = `https://<ref>.supabase.co/functions/v1/discord` → Save
-8. **Slash commands** (ครั้งเดียว): `DISCORD_APP_ID=… DISCORD_BOT_TOKEN=… npm run register-commands`
-9. **Vercel** — env `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY` → Deploy
-10. **Supabase Auth** → Site URL = โดเมน Vercel → login ครั้งแรก → ปิด "Allow new users to sign up"
-11. **มือถือ** เปิดเว็บ → เพิ่มลงหน้าจอโฮม → อัพโหลดตาราง → ตั้งค่า → เปิด "แจ้งเตือนบนเครื่องนี้" → ส่งแจ้งเตือนทดสอบ
+ระบบหลังบ้านเป็น edge function ตัวเดียวชื่อ `skiinx` (เส้นทาง `/remind` `/discord` `/ics` `/push-action` `/test-notify`)
+คีย์ที่สร้างขึ้นเอง (VAPID, cron secret) เก็บใน Supabase Vault ชื่อ `skiinx_*` — function อ่านผ่าน `public.skiinx_config()`
+
+1. **Supabase** — สร้างโปรเจกต์ แล้ว `npx supabase link --project-ref <ref>` → `npx supabase db push`
+2. **คีย์แจ้งเตือนมือถือ** — `npm run gen-vapid`
+3. **Vault + cron** — แก้ค่าใน [supabase/cron.sql](supabase/cron.sql) แล้วรันใน SQL Editor ครั้งเดียว
+4. **Function** — `npm run sync-core && npx supabase functions deploy skiinx --no-verify-jwt`
+5. **Vercel** — env `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY` → Deploy
+6. **Auth** — Authentication → URL Configuration → Redirect URLs เพิ่ม `https://<app>.vercel.app/**`
+7. **Discord** (ข้ามได้) — สร้างบอท → Edge Functions → Secrets ใส่ `DISCORD_MODE=bot`, `DISCORD_BOT_TOKEN`, `DISCORD_PUBLIC_KEY`, `DISCORD_USER_ID`
+   → Interactions Endpoint URL = `https://<ref>.supabase.co/functions/v1/skiinx/discord`
+   → `DISCORD_APP_ID=… DISCORD_BOT_TOKEN=… npm run register-commands`
+   (webhook แทนบอท: `DISCORD_MODE=webhook`, `DISCORD_WEBHOOK_URL`, `DISCORD_USER_ID`)
+8. **มือถือ** — เพิ่มลงหน้าจอโฮม → login → อัพโหลดตาราง → ตั้งค่า → เปิด "แจ้งเตือนบนเครื่องนี้" → ส่งแจ้งเตือนทดสอบ
 
 > Supabase Free พักโปรเจกต์ที่ไม่มีการใช้งาน 1 สัปดาห์ — ถ้าโดนพัก แจ้งเตือนจะหยุด แต่ .ics ยังเตือนอยู่
 
@@ -75,7 +55,7 @@ lib/core.js                 ตาราง + กฎ + การตัดสิ�
 lib/skinMetrics.js          ค่าความแดง/จุดแดง/ความมันจากพิกเซล (pure, มี unit test)
 lib/skinAnalysis.ts         MediaPipe Face Landmarker → regions → skinMetrics + ภาพตัดแต่ละบริเวณ
 lib/push.ts · public/sw.js  สมัคร Web Push · แสดงแจ้งเตือน + ปุ่ม
-supabase/functions          remind · discord · push-action · test-notify · ics
+supabase/functions/skiinx   edge function เดียว: routes/ (remind · discord · ics · push-action · test-notify) + lib/
 supabase/migrations         ตาราง + RLS (รวม push_subscriptions, skin_logs.ai)
 scripts/                    prepare-mediapipe · gen-vapid · register-commands · sync-core · make-icons
 ```
