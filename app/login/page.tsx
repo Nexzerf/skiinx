@@ -23,6 +23,9 @@ const BUBBLES: { icon: LucideIcon; cls: string; delay: string }[] = [
 export default function Login() {
   const [email, setEmail] = useState("");
   const [showEmail, setShowEmail] = useState(false);
+  const [code, setCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
   const [state, setState] = useState<"idle" | "discord" | "email" | "sent">("idle");
   const [error, setError] = useState<string | null>(null);
   const [invited, setInvited] = useState(false);
@@ -64,6 +67,16 @@ export default function Login() {
       setError(explainAuthError(error.message));
       setState("idle");
     }
+  };
+
+  const verifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setVerifying(true);
+    setCodeError(null);
+    const { error } = await sb().auth.verifyOtp({ email: email.trim(), token: code, type: "email" });
+    setVerifying(false);
+    // success → the auth listener in lib/data.tsx takes the user into the app
+    if (error) setCodeError(/expired|invalid/i.test(error.message) ? "รหัสไม่ถูกหรือหมดอายุแล้ว — ลองใหม่ หรือขอรหัสใหม่" : explainAuthError(error.message));
   };
 
   const sendLink = async (e: React.FormEvent) => {
@@ -142,11 +155,31 @@ export default function Login() {
             <span className="pop mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-emerald-50 text-emerald-500">
               <MailCheck className="h-7 w-7" />
             </span>
-            <p className="mt-3 font-semibold">ส่งลิงก์ไปที่อีเมลแล้ว</p>
+            <p className="mt-3 font-semibold">ส่งรหัสไปที่อีเมลแล้ว</p>
             <p className="mt-1 text-sm text-muted">
-              เปิดอีเมล <b className="text-ink">{email}</b> บนเครื่องนี้ แล้วกดลิงก์เพื่อเข้าสู่ระบบ
+              ดูอีเมล <b className="text-ink">{email}</b> แล้วพิมพ์รหัสตัวเลขตรงนี้
             </p>
-            <button className="mt-3 rounded-full px-3 py-2 text-sm text-brand-500 underline" onClick={() => setState("idle")}>
+            {/* typing the code keeps the sign-in inside this app — a tapped link opens the browser instead
+                (on iPhone the installed app and Safari don't share a login) */}
+            <form onSubmit={verifyCode} className="mt-4 flex gap-2">
+              <input
+                className="h-14 min-w-0 flex-1 rounded-2xl border border-brand-100 bg-white text-center text-2xl font-bold tracking-[0.35em] tabular-nums outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-100"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                maxLength={10}
+                placeholder="••••••"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                aria-label="รหัสจากอีเมล"
+              />
+              <button className="btn-primary h-14 shrink-0 px-5" disabled={code.length < 6 || verifying} aria-label="ยืนยันรหัส">
+                {verifying ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />}
+              </button>
+            </form>
+            {codeError && <p className="mt-2 text-sm text-red-500">{codeError}</p>}
+            <p className="mt-3 text-xs text-muted">ไม่ต้องกดลิงก์ในอีเมล — ถ้ากดลิงก์ รหัสนี้จะใช้ไม่ได้</p>
+            <button className="mt-1 rounded-full px-3 py-2 text-sm text-brand-500 underline" onClick={() => { setState("idle"); setCode(""); setCodeError(null); }}>
               ใช้อีเมลอื่น
             </button>
           </div>

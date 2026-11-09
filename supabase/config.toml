@@ -3,3 +3,8 @@ project_id = "skiinx"
 # One function with routes (/remind /discord /ics /push-action /test-notify); each route checks auth itself.
 [functions.skiinx]
 verify_jwt = false
+
+# Email sign-in sends a code to type into the app (a tapped link would open the browser, not the PWA).
+[auth.email.template.magic_link]
+subject = "รหัสเข้าสู่ระบบ Skiinx: {{ .Token }}"
+content_path = "./supabase/templates/magic_link.html"
