@@ -274,6 +274,7 @@ export async function captureSharpest(video: HTMLVideoElement, frames = 4, gapMs
       best = c;
     }
   }
-  const blob: Blob = await new Promise((r) => best!.toBlob((b) => r(b!), "image/jpeg", 0.9));
+  const blob = await new Promise<Blob | null>((r) => best!.toBlob(r, "image/jpeg", 0.9));
+  if (!blob || !blob.size) throw new Error("ถ่ายภาพจากกล้องไม่ได้");
   return { blob, width: w, height: h };
 }

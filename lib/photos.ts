@@ -35,16 +35,47 @@ function open(): Promise<IDBDatabase> {
 async function tx<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T> | void): Promise<T> {
   const db = await open();
   return new Promise((res, rej) => {
-    const t = db.transaction(STORE, mode);
-    const req = fn(t.objectStore(STORE));
-    t.oncomplete = () => res(req ? (req.result as T) : (undefined as T));
-    t.onerror = () => rej(t.error);
+    try {
+      const t = db.transaction(STORE, mode);
+      const req = fn(t.objectStore(STORE));
+      t.oncomplete = () => res(req ? (req.result as T) : (undefined as T));
+      t.onerror = () => rej(t.error || new Error("บันทึกรูปไม่สำเร็จ"));
+      t.onabort = () => rej(t.error || new Error("บันทึกรูปไม่สำเร็จ (พื้นที่ในเครื่องอาจเต็ม)"));
+    } catch (e) {
+      rej(e); // e.g. DataCloneError thrown by put()
+    }
   });
 }
 
+/*
+ * Safari — above all an iPhone home-screen app — can fail to put Blobs into IndexedDB, which left
+ * the camera stuck after the shutter. Images are stored as plain bytes + type instead and turned
+ * back into Blobs on read (older records that hold Blobs still load).
+ */
+type Bytes = { bytes: ArrayBuffer; type: string };
+const toBytes = async (b: Blob): Promise<Bytes> => ({ bytes: await b.arrayBuffer(), type: b.type || "image/jpeg" });
+const fromBytes = (v: any): Blob => (v instanceof Blob ? v : new Blob([v.bytes], { type: v.type }));
+
+async function toRecord(p: Photo) {
+  const regions: Record<string, Bytes> | undefined = p.regions
+    ? Object.fromEntries(await Promise.all(Object.entries(p.regions).map(async ([k, b]) => [k, await toBytes(b)] as const)))
+    : undefined;
+  return { ...p, blob: await toBytes(p.blob), regions };
+}
+function fromRecord(r: any): Photo {
+  return {
+    ...r,
+    blob: fromBytes(r.blob),
+    regions: r.regions ? Object.fromEntries(Object.entries(r.regions).map(([k, v]) => [k, fromBytes(v)])) : undefined,
+  };
+}
+
 export const allPhotos = async (): Promise<Photo[]> =>
-  ((await tx<Photo[]>("readonly", (s) => s.getAll())) || []).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-export const savePhoto = (p: Photo) => tx("readwrite", (s) => s.put(p));
+  ((await tx<any[]>("readonly", (s) => s.getAll())) || []).map(fromRecord).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+export const savePhoto = async (p: Photo) => {
+  const rec = await toRecord(p); // read the bytes BEFORE opening the transaction (it would auto-commit while awaiting)
+  return tx("readwrite", (s) => s.put(rec));
+};
 export const deletePhoto = (id: string) => tx("readwrite", (s) => s.delete(id));
 export const clearPhotos = () => tx("readwrite", (s) => s.clear());
 

@@ -1,5 +1,5 @@
 "use client";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Camera, CircleCheck, Eye, ImagePlus, Lightbulb, ScanFace, ShieldCheck, Sun, Timer, X, type LucideIcon } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Camera, CircleCheck, Eye, ImagePlus, Lightbulb, LoaderCircle, ScanFace, ShieldCheck, Sun, Timer, X, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -137,6 +137,8 @@ function Capture() {
     });
   }, []);
 
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   if (!ready) return null;
 
   const store = async (blob: Blob, width: number, height: number) => {
@@ -159,11 +161,28 @@ function Capture() {
     if (ai + 1 < angles.length) setAi(ai + 1);
     else {
       const log = snap.skinLogs.find((l) => l.date === today);
-      await upsertSkinLog({
-        ...(log || { date: today, acne: null, oil: null, irritation: null, overall: null, note: null, photo_angles: [] }),
-        photo_angles: Array.from(new Set([...(log?.photo_angles || []), ...saved.current])),
-      });
+      try {
+        await upsertSkinLog({
+          ...(log || { date: today, acne: null, oil: null, irritation: null, overall: null, note: null, photo_angles: [] }),
+          photo_angles: Array.from(new Set([...(log?.photo_angles || []), ...saved.current])),
+        });
+      } catch {
+        // the photo itself is safe on this device — only the "photo taken" mark didn't sync; carry on
+      }
       setPhase("score");
+    }
+  };
+
+  /** Run a capture step; on failure tell the user instead of freezing on the camera screen. */
+  const guarded = async (work: () => Promise<void>) => {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await work();
+    } catch (e: any) {
+      setSaveError(`บันทึกรูปไม่สำเร็จ — ${e?.message || e} · ลองถ่ายอีกครั้ง`);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -176,17 +195,22 @@ function Capture() {
       if (n > 0) return setCount(n);
       clearInterval(t);
       setCount(null);
-      const v = videoRef.current!;
-      const r = await captureSharpest(v); // sharpest of a short burst, mirrored like the preview
-      await store(r.blob, r.width, r.height);
+      guarded(async () => {
+        const v = videoRef.current;
+        if (!v?.videoWidth) throw new Error("กล้องยังไม่พร้อม");
+        const r = await captureSharpest(v); // sharpest of a short burst, mirrored like the preview
+        await store(r.blob, r.width, r.height);
+      });
     }, 1000);
   };
 
   const onFile = async (f?: File) => {
     if (!f) return;
-    const img = await fileToImage(f);
-    const r = await resizeToJpeg(img, img.naturalWidth, img.naturalHeight);
-    await store(r.blob, r.width, r.height);
+    guarded(async () => {
+      const img = await fileToImage(f);
+      const r = await resizeToJpeg(img, img.naturalWidth, img.naturalHeight);
+      await store(r.blob, r.width, r.height);
+    });
   };
 
   const finish = () => {
@@ -251,6 +275,18 @@ function Capture() {
               />
             </div>
             {count !== null && <div className="absolute inset-0 grid place-items-center text-8xl font-bold drop-shadow-lg">{count}</div>}
+            {saving && (
+              <div className="absolute inset-0 grid place-items-center bg-black/40">
+                <span className="flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 font-semibold">
+                  <LoaderCircle className="h-5 w-5 animate-spin" /> กำลังบันทึก…
+                </span>
+              </div>
+            )}
+            {saveError && (
+              <div className="absolute inset-x-4 bottom-4 rounded-2xl bg-red-500 p-3 text-center text-sm font-medium shadow-xl" role="alert">
+                {saveError}
+              </div>
+            )}
 
             {!verified ? (
               <LivenessPanel live={live} dark={!!hint?.dark} />
@@ -295,7 +331,7 @@ function Capture() {
             </button>
             <button
               aria-label="ถ่าย"
-              disabled={count !== null || !verified}
+              disabled={count !== null || saving || !verified}
               className={`grid h-20 w-20 place-items-center rounded-full border-4 bg-brand-500 transition active:scale-95 disabled:opacity-40 ${hint?.ok && verified ? "border-emerald-400 shadow-[0_0_0_6px_rgb(52_211_153/0.35)]" : "border-white"}`}
               onClick={shoot}
             />
