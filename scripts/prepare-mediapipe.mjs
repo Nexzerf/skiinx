@@ -42,3 +42,10 @@ if (existsSync("node_modules/tesseract.js/dist/worker.min.js") && existsSync("no
   }
   console.log("prepare-mediapipe: tesseract ready");
 }
+
+// ZXing barcode reader (WASM) for the product scanner, served from our own origin.
+if (existsSync("node_modules/zxing-wasm/dist/reader/zxing_reader.wasm")) {
+  mkdirSync("public/zxing", { recursive: true });
+  cpSync("node_modules/zxing-wasm/dist/reader/zxing_reader.wasm", "public/zxing/zxing_reader.wasm");
+  console.log("prepare-mediapipe: zxing ready");
+}

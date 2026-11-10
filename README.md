@@ -61,7 +61,7 @@ Supabase → Authentication → Emails → **Magic Link** → วางเนื
 - ค้นหาสินค้าจาก [Open Beauty Facts](https://world.openbeautyfacts.org) (ฟรี ไม่ต้องใช้ key) ถ้าไม่เจอเพิ่มเองพร้อมรูป (bucket `product-images`) หรือไอคอน
 - `lib/ingredients.js` ตรวจประเภท/ตัวยาจากชื่อและส่วนผสม · `lib/routineEngine.js` จัดลำดับ แยกเรตินอยด์/กรด เลือกเช้า-กลางคืน และหมุนคืน — กฎล้วน ไม่มี AI
 - ตาราง Excel: ดาวน์โหลดเทมเพลตได้จากหน้า ตารางของฉัน
-- **สแกนสินค้า** (`components/ProductScanner.tsx`) — บาร์โค้ด (BarcodeDetector / ZXing) → Open Beauty Facts; ไม่เจอก็ถ่ายฉลาก → Tesseract อ่านบนเครื่อง (ไทย+อังกฤษ, self-host ใน `public/tesseract` ตอน `npm install`) → `lib/label.js` ดึงชื่อ แบรนด์ ส่วนผสม EXP และ “12M”
+- **สแกนสินค้า** (`components/ProductScanner.tsx`, `lib/scan.ts`) — บาร์โค้ด (BarcodeDetector / ZXing WASM ใน `public/zxing`) → Open Beauty/Food/Products Facts + UPCitemdb; ไม่เจอก็ถ่ายฉลาก → Tesseract อ่านบนเครื่อง (ไทย+อังกฤษ, self-host ใน `public/tesseract` ตอน `npm install`) → `lib/label.js` ดึงชื่อ แบรนด์ ส่วนผสม EXP และ “12M”
 - **วันหมดอายุ** (`lib/expiry.js`) — ยังไม่เปิด / เปิดแล้ว / ใช้หมด, หมดอายุ = วันที่บนกล่อง หรือ วันเปิด + PAO แล้วแต่อันไหนถึงก่อน · หน้า `/shelf/products`
 
 ## โครงสร้าง

@@ -158,7 +158,17 @@ export function ProductSheet({
   };
   const onScan = async (r: ScanResult) => {
     setScanning(false);
-    if (r.kind === "barcode") return pick(r.found);
+    if (r.kind === "barcode") {
+      pick(r.found);
+      // dates read off the label, and our own photo when the database has none
+      if (r.extra) setD((x) => ({ ...x, expires_on: r.extra!.expires_on ?? x.expires_on, pao_months: r.extra!.pao_months ?? x.pao_months }));
+      if (r.photo) {
+        const blob = await shrinkImage(r.photo);
+        setFile({ blob, url: URL.createObjectURL(blob) });
+        setArt("photo");
+      }
+      return;
+    }
     const { info } = r;
     setD({
       ...blank(today),

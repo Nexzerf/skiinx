@@ -212,3 +212,12 @@ test("reads specific ingredients off a label, ignoring pH buffers", async () => 
   assert.ok(ing.detectIngredients("The Ordinary Azelaic Acid Suspension 10%").includes("azelaic_i"));
   assert.ok(ing.detectIngredients("Glycolic Acid 7% Toning Solution").includes("glycolic"));
 });
+
+test("OCR typos in an ingredient list still match", async () => {
+  const ing = await import("../lib/ingredients.js");
+  const found = ing.detectIngredients("", "Aqua, Niacinamlde, Sodium Hyaluronafe, Panthenoi, Ceramlde NP, Phenoxyethanol");
+  for (const k of ["niacinamide_i", "hyaluronic"]) assert.ok(found.includes(k), k);
+  assert.ok(!found.includes("citric"));
+  // nothing invented from unrelated words
+  assert.deepEqual(ing.detectIngredients("", "Phenoxyethanol, Butylene Glycol, Dimethicone"), []);
+});

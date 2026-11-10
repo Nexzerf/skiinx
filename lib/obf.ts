@@ -38,11 +38,33 @@ function toFound(p: any): FoundProduct | null {
   };
 }
 
-/** Look a scanned barcode up in Open Beauty Facts. null = not in the database. */
+/**
+ * Look a scanned barcode up: Open Beauty Facts first, then its sister databases (some cosmetics are
+ * filed there) and UPCitemdb's free lookup. null = not in any of them.
+ */
 export async function lookupBarcode(code: string, signal?: AbortSignal): Promise<FoundProduct | null> {
-  const res = await fetch(`https://world.openbeautyfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=${FIELDS},ingredients_text_en`, { signal });
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`lookup ${res.status}`);
-  const j = await res.json();
-  return j.status === 1 && j.product ? toFound({ ...j.product, code }) : null;
+  const off = (host: string) => async () => {
+    const res = await fetch(`https://${host}/api/v2/product/${encodeURIComponent(code)}.json?fields=${FIELDS},ingredients_text_en`, { signal });
+    if (!res.ok) return null;
+    const j = await res.json();
+    return j.status === 1 && j.product ? toFound({ ...j.product, code }) : null;
+  };
+  const upcitemdb = async () => {
+    const res = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(code)}`, { signal });
+    if (!res.ok) return null;
+    const it = (await res.json())?.items?.[0];
+    return it?.title ? { code, name: String(it.title), brand: String(it.brand || ""), image: it.images?.[0] || null, ingredients: "", tags: [it.category || ""] } : null;
+  };
+  let lastError: unknown = null;
+  for (const source of [off("world.openbeautyfacts.org"), off("world.openfoodfacts.org"), off("world.openproductsfacts.org"), upcitemdb]) {
+    try {
+      const hit = await source();
+      if (hit) return hit;
+    } catch (e) {
+      if ((e as any)?.name === "AbortError") throw e;
+      lastError = e;
+    }
+  }
+  if (lastError && !navigator.onLine) throw lastError;
+  return null;
 }
